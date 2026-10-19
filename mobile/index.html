@@ -630,12 +630,25 @@ function mergeList(slot, game) {
 const MAGEOM = { name: "마검", kind: "전용(추가)", row: 0,
   desc: "【1/시】【선행】/「기능 확장 : ○○」를 사용할 수 있다.\n이 포텐셜은 통상 교대로 필드에 등장한 턴 가장 마지막에도 발동할 수 있다.",
   note: "Claude 추가 · 167단계 규칙(사용자 10-15 23:55): 【1/시】【선행】 + 『전용』(또는 『고유』, SP 아님) + 교대 문장이 다 있어야 작동 · 보통 턴 = 그 턴 기술 대신 ○○ / 통상 교대 턴 = 들어온 포켓몬이 가장 마지막에 ○○ · 예: 모드레드 『반역한 헤렉의 검』(○○ = 붉은 번개)" };
+// 목록에서 뺄 것 (사용자 10-19 21:13 「위에는 내가 허락받은게 아니고 아래는 왠만하면 안 쓸 것들」) — 시트에 있어도 안 보임
+const TBL_EXCLUDE = {
+  역할: ["탐사대원", "탐사대장", "수렵대원", "보급대원", "구급대원", "추적대원", "조사대원'"],
+  부수: ["프라이멀 헌트", "와일드 헌트", "브레이크 헌트", "레스큐 헌트", "새비지 헌트", "리서치 헌트"],
+  특권: [/^프로모션\s*:/],
+};
+const tblExcluded = (slot, n) => (TBL_EXCLUDE[slot] || []).some((e) => e instanceof RegExp ? e.test(String(n).trim()) : e === String(n).trim());
+// 역할 = 게임 데이터(배틀 역할표 role_db · 포텐셜 목록 pot_lists)에 있는 것만 (사용자 21:13 「연결한 프로젝트 + 데이터 기준으로 없는 역할들은 전부 삭제」)
+const roleInGame = (n) => !!(D.roles[n] || plFind(PL.roles, n));
 function applyTable(t) {
-  TB = Object.assign({}, t.lists); TBH = t.help || {};
+  TB = {}; for (const k in t.lists) TB[k] = t.lists[k].filter((x) => !tblExcluded(k, x.name));
+  if (TB["역할"]) TB["역할"] = TB["역할"].filter((x) => roleInGame(x.name));
+  TBH = t.help || {};
   TB["전용"] = (TB["전용"] || []).filter((x) => x.name !== "마검" || x.kind === "전용(추가)");
   if (!TB["전용"].some((x) => x.kind === "전용(추가)")) TB["전용"] = TB["전용"].concat([MAGEOM]);
   ROLES_M = mergeList("역할", PL.roles).map((r) => r.block ? r : Object.assign(r, { block: /선발로써|선발로서/.test(r.desc) ? "선발" : "" }));
-  SUBS_M = mergeList("부수", PL.subs); CLASSES_M = mergeList("분류", PL.classes); SEN_M = mergeList("선", PL.sen); PRIV_M = mergeList("특권", PL.privileges);
+  SUBS_M = mergeList("부수", PL.subs).filter((x) => !tblExcluded("부수", x.name)); CLASSES_M = mergeList("분류", PL.classes); SEN_M = mergeList("선", PL.sen);
+  PRIV_M = mergeList("특권", PL.privileges).filter((x) => !tblExcluded("특권", x.name));
+  ROLES_M = ROLES_M.filter((x) => !tblExcluded("역할", x.name));
   for (const s of ["회피", "내성", "격"]) SANS_TB[s] = (TB[s] || []).map((r) => {
     const tier = r.name[0], kind = s === "격" ? r.name.slice(-2) : s;
     const ty = ([...String(r.desc).matchAll(/「(?:타입 : )?([^」]+)」/g)].map((x) => x[1]).find((x) => TYPES.includes(x))) || "";
