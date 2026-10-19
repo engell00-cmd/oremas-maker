@@ -110,6 +110,19 @@ input[type=number] { font-variant-numeric: tabular-nums; }
 .slot .sn { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .slot .sn.empty { color: var(--sub); }
 .slot .si { padding: 0 10px 10px; display: grid; gap: 8px; }
+/* M8 (사용자 10-19 21:41): 역할·분류·주인·회피·내성·격·범용·부수·특권 = 드롭다운 한 줄 */
+.ddslot { border: 1px solid var(--line); border-radius: 8px; background: var(--panel2); padding: 8px 10px 4px; display: grid; gap: 2px; grid-template-columns: minmax(0, 1fr); }
+.ddrow { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; align-items: center; }
+.ddslot .sl { font-size: 12px; color: var(--ink); background: var(--sub); border-radius: 5px; padding: 2px 7px; font-weight: 600; white-space: nowrap; }
+.ddslot.filled .sl { background: var(--neon); }
+select.ddsel { min-width: 0; width: 100%; padding: 8px 10px; font-weight: 600; }
+select.ddsel option:disabled { color: #7b86b0; }
+.ddslot > details.ddmore { border: 0; background: transparent; }
+.ddslot > details.ddmore > summary { padding: 4px 0; align-items: flex-start; }
+.ddslot > details.ddmore .sn { white-space: normal; font-size: 13px; color: var(--sub); flex: 1; }
+.ddslot > details.ddmore .ddedit { flex: 0 0 auto; font-size: 12px; color: var(--neon); }
+.ddslot > details.ddmore .si { padding: 4px 0 8px; }
+.ptbox { border: 1px dashed var(--line); border-radius: 8px; padding: 8px; display: grid; gap: 6px; grid-template-columns: minmax(0, 1fr); }
 /* 기술 칸 */
 .mv { display: grid; grid-template-columns: 22px 1fr auto; gap: 6px 8px; align-items: center; padding: 6px 0; border-top: 1px dashed var(--line); }
 .mv:first-child { border-top: 0; }
@@ -474,6 +487,7 @@ const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<
 // ───────── 게임 규칙 (scripts/data/monster_paste.gd · monster_db.gd · trainer_db.gd 와 같게) ─────────
 const TYPES = D.types;                         // 노말 … 신 (다크 포함)
 const SLOTS = ["역할","분류","주인","이명","종족","종족","종족","종족","속별","유대","선","회피","내성","격","범용","부수","특권","PT","PT","전술"];
+const DD_SLOTS = [0, 1, 2, 11, 12, 13, 14, 15, 16];   // M8 드롭다운 칸 (역할·분류·주인·회피·내성·격·범용·부수·특권)
 const CODE_OF_SLOT = [0,1,2,3,4,4,4,4,5,6,7,8,9,10,11,13,14,15,15,15];
 const CODE_SLOTS = {0:[0],1:[1],2:[2],3:[3],4:[4,5,6,7],5:[8],6:[9],7:[10],8:[11],9:[12],10:[13],11:[14],13:[15],14:[16],15:[17,18,19]};
 const STAT_ORDER = ["hp","atk","def","spa","spd","spe"];
@@ -743,7 +757,11 @@ function subOk(sub, role, types) {
     for (const n of names) if (role === n || role.startsWith(n + " :") || block === n) return [true, ""];
     return [false, names.map((n) => `『${n}』`).join("·") + " 전용"];
   }
-  if (!sub.block) return [true, ""];   // 표에만 있고 조건 글이 없는 부수 = 막지 않음
+  if (!sub.block) {   // 표에만 있고 조건 글이 없는 부수 = 배틀 역할표(role_db)의 짝 부수로 판단
+    const owners = Object.entries(D.roles).filter(([, r]) => r.sub === sub.name).map(([n]) => n);
+    if (owners.length) return [owners.includes(role), owners.map((n) => `『${n}』`).join("·") + " 전용"];
+    return [false, "어느 역할의 부수인지 몰라요"];
+  }
   return [block === String(sub.block), `같은 계열(${sub.block}) 역할만`];
 }
 function autoSub(role, types) {
@@ -849,7 +867,7 @@ function setTab(t) {
   S.tab = t; save();
   for (const b of document.querySelectorAll(".tabs button")) b.setAttribute("aria-selected", String(b.dataset.tab === t));
   $("view-mon").hidden = t !== "mon"; $("view-tr").hidden = t !== "tr";
-  if (t === "mon") renderTrq();
+  if (t === "mon" && S.mon) renderMon();
   refreshFresh();
   window.scrollTo(0, 0); autosizeAll();
 }
@@ -865,15 +883,24 @@ function fillEggSelect(sel, cur) {
   sel.innerHTML = '<option value="">—</option>' + list.map((e) => `<option${e === cur ? " selected" : ""}>${esc(e)}</option>`).join("");
 }
 $("m-stat-grid").innerHTML = STAT_ORDER.map((k) => `<label class="f">${STAT_KO[k]}<input id="m-st-${k}" data-k="stats.${k}" type="number" inputmode="numeric" min="1" max="999"></label>`).join("");
-$("m-pot-list").innerHTML = SLOTS.map((_, i) => `
-  <details class="slot" id="m-pot-${i}">
-    <summary><span class="sl">${esc(slotLabel(i))}</span><span class="sn" id="m-pot-${i}-sum"></span></summary>
-    <div class="si">
+$("m-pot-list").innerHTML = SLOTS.map((_, i) => {
+  const dd = DD_SLOTS.includes(i);
+  const inner = `<div class="si">
       <label class="f">이름<input id="m-pot-${i}-name" data-k="pots.${i}.name" autocomplete="off"></label>
       <label class="f">설명<textarea id="m-pot-${i}-desc" data-k="pots.${i}.desc" rows="3"></textarea></label>
-      <div class="row"><button class="b sm pri" data-pick="${i}"${PICKABLE(i) ? "" : " hidden"}>고르기</button><button class="b sm" data-macro="${i}">짜기</button><button class="b sm ghost" data-potclear="${i}">비우기</button></div>
-    </div>
-  </details>`).join("") + '<div class="note">칸 번호는 게임 붙여넣기와 같아요 (종족 4칸 · PT 2칸 + 전술은 같은 번호를 차례로 채움).</div>';
+      <div class="note" id="m-pot-${i}-from" hidden></div>
+      <div class="row">${!dd ? `<button class="b sm pri" data-pick="${i}"${PICKABLE(i) ? "" : " hidden"}>고르기</button>` : ""}<button class="b sm" data-macro="${i}">짜기</button><button class="b sm ghost" data-potclear="${i}">비우기</button></div>
+    </div>`;
+  if (!dd) return `
+  <details class="slot" id="m-pot-${i}">
+    <summary><span class="sl">${esc(slotLabel(i))}</span><span class="sn" id="m-pot-${i}-sum"></span></summary>${inner}
+  </details>`;
+  return `
+  <div class="ddslot" id="m-dds-${i}">
+    <div class="ddrow"><span class="sl">${esc(slotLabel(i))}${i === 15 ? " · 자동" : ""}</span><select class="ddsel" id="m-dd-${i}" data-dd="${i}" aria-label="${esc(slotLabel(i))} 고르기"></select></div>
+    <details class="slot ddmore" id="m-pot-${i}"><summary><span class="sn" id="m-pot-${i}-sum"></span><span class="ddedit">✎ 고쳐 쓰기</span></summary>${inner}</details>
+  </div>`;
+}).join("")
 $("m-move-list").innerHTML = Array.from({ length: MOVE_SLOTS }, (_, i) => `
   <div class="mv"><span class="n">${i + 1}</span><input id="m-mv-${i}" data-k="moves.${i}.name" autocomplete="off" placeholder="기술 이름"><span class="row" style="gap:4px;flex-wrap:nowrap"><button class="b sm" data-mvfind="${i}">찾기</button><button class="b sm ghost" data-mvclear="${i}" aria-label="${i + 1}번 기술 비우기">✕</button></span>
   <div class="meta" id="m-mv-${i}-meta"></div></div>`).join("");
@@ -970,11 +997,13 @@ function refreshMon() {
   $("m-stat-sum").textContent = "합계 " + sum;
   $("m-stats-hint").textContent = STAT_ORDER.map((k) => m.stats[k]).join("-") + " (" + sum + ")";
   let filled = 0;
+  syncTrainerPT();
   m.pots.forEach((p, i) => {
     const has = String(p.name).trim() || String(p.desc).trim(); if (has) filled++;
     $("m-pot-" + i).classList.toggle("filled", !!has);
-    const s = $("m-pot-" + i + "-sum");
-    s.textContent = has ? (p.name ? "『" + p.name + "』 " : "") + String(p.desc).replace(/\n/g, " ") : "(비어 있음)";
+    const s = $("m-pot-" + i + "-sum"), dd = DD_SLOTS.includes(i);
+    if (dd) { $("m-dds-" + i).classList.toggle("filled", !!has); renderDD(i); s.textContent = has ? String(p.desc).replace(/\n/g, " ") || "(설명 없음)" : ""; }
+    else s.textContent = has ? (p.name ? "『" + p.name + "』 " : "") + String(p.desc).replace(/\n/g, " ") : "(비어 있음)";
     s.classList.toggle("empty", !has);
   });
   $("m-pots-hint").textContent = filled + " / 20칸";
@@ -1065,7 +1094,8 @@ $("m-pot-list").addEventListener("click", (e) => {
 const monTypes = () => S.mon.types.filter(Boolean);
 const setPot = (i, n, d) => { S.mon.pots[i] = { name: n || "", desc: d || "" }; };
 // [고르기] — 칸 종류마다 4.xlsx 「테이블(싱글)」 목록 (+ 게임 목록에만 있는 것)
-function PICKABLE(i) { return SLOTS[i] !== "PT" && (TB[SLOTS[i]] || []).length > 0; }
+// M8 (사용자 10-19 21:41): 드롭다운 칸 · PT1·PT2 = 트레이너에서 · 전술 = 비워 둠 (목록 없음)
+function PICKABLE(i) { return !DD_SLOTS.includes(i) && SLOTS[i] !== "PT" && SLOTS[i] !== "전술" && (TB[SLOTS[i]] || []).length > 0; }
 function slotIntro(slot, extra) {
   extra = [extra, '<span class="note">목록: ' + tblSrcText() + "</span>"].filter(Boolean).join("<br>");
   const h = (TBH[slot] || []).map((x) => `<b>${esc(x[0])}</b> ${esc(x[1])}${x[2] ? ` <span class="note">(${esc(x[2])})</span>` : ""}`).join("<br>");
@@ -1104,6 +1134,75 @@ function openSlotPick(i) {
   if (slot === "종족") return list(slotLabel(i) + " 고르기 — 예시 (넣은 뒤 고쳐 쓰기)", groupSort(TB["종족"].map((x) => Object.assign(base(x), { group: x.kind === "예시" ? "예시 틀 — 고쳐 쓰는 출발점" : "종족 (표)" }))));
   if (slot === "속별") return list("속별 고르기 — 예시일 뿐이에요 (넣은 뒤 고쳐 쓰기)", TB["속별"].map(base), null, '<span class="warn">속별은 예시 목록이에요 — 그대로 쓰기보다 이 포켓몬에 맞게 고쳐 쓰세요</span>');
   return list(slot + " 고르기", TB[slot].map(base));
+}
+// ───────── M8: 칸 드롭다운 ─────────
+const typeOrder = (t) => { const k = TYPES.indexOf(t); return k < 0 ? 99 : k; };
+const isIgye = (x) => x.note === "이계 템플릿" || /《이계/.test(String(x.desc)) || x.name === "이계의 주인";   // 주인 드롭다운에서 뺌 (사용자 「이계의 주인 제외」)
+const privKind = (n) => /^익스펜션/.test(n) ? "익스펜션" : /^계약의 특권/.test(n) ? "계약의 특권" : "그 밖의 특권";
+function ddRows(i) {
+  const slot = SLOTS[i], types = monTypes(), base = (x) => ({ name: x.name, desc: x.desc, note: x.note });
+  if (slot === "역할") return groupSort(ROLES_M.map((r) => Object.assign(base(r), { group: r.block || "그 밖" })));
+  if (slot === "분류") { const nm = S.mon.name.trim(); return CLASSES_M.map((c) => Object.assign(base(c), { desc: nm ? String(c.desc).replaceAll("○○", nm) : c.desc, ok: !String(c.note).startsWith("폐지"), why: "폐지" })); }
+  if (slot === "주인") return (TB["주인"] || []).filter((x) => !isIgye(x)).map(base);
+  if (SANS.includes(slot)) {
+    const tier = breedAA() ? "극" : "대";
+    return SANS_TB[slot].filter((x) => x.tier === tier).sort((a, b) => (slot === "격" ? a.kind.localeCompare(b.kind, "ko") : 0) || typeOrder(a.type) - typeOrder(b.type))
+      .map((x) => ({ name: x.name, desc: x.desc, note: x.note, group: slot === "격" ? x.kind : "", label: `${x.type} · ${x.name}`, ty: x.type }));
+  }
+  if (slot === "범용") return (TB["범용"] || []).map(base);
+  if (slot === "부수") { const role = S.mon.pots[0].name.trim(); if (!role) return []; return SUBS_M.filter((x) => subOk(x, role, types)[0]).map(base); }
+  if (slot === "특권") return groupSort(PRIV_M.map((x) => { const ok = privOk(x, types); return Object.assign(base(x), { group: x.src === "게임" ? "게임 목록에만" : privKind(x.name), ok: ok[0], why: ok[1] }); }));
+  return [];
+}
+const DD_KEY = {};
+function renderDD(i) {
+  const sel = $("m-dd-" + i); if (!sel) return;
+  const rows = ddRows(i), curName = String(S.mon.pots[i].name).trim(), at = rows.findIndex((r) => r.name === curName);
+  const key = rows.map((r) => r.name + (r.ok === false ? "!" : "")).join("|") + "#" + curName;
+  if (DD_KEY[i] === key && sel.options.length) return;
+  DD_KEY[i] = key; sel._rows = rows;
+  const empty = i === 15 && !S.mon.pots[0].name.trim() ? "(역할을 먼저 고르세요)" : "— 비어 있음 —";
+  let h = `<option value="">${empty}</option>`;
+  if (curName && at < 0) h += `<option value="cur">『${esc(curName)}』 (직접 쓴 글)</option>`;
+  let g = "";
+  rows.forEach((r, k) => {
+    const rg = r.group || "";
+    if (rg !== g) { if (g) h += "</optgroup>"; if (rg) h += `<optgroup label="${esc(rg)}">`; g = rg; }
+    h += `<option value="${k}"${r.ok === false ? " disabled" : ""}${r.ty ? ` style="${tyStyle(r.ty)}"` : ""}>${esc(r.label || r.name)}${r.ok === false ? " — " + esc(r.why) : ""}</option>`;
+  });
+  if (g) h += "</optgroup>";
+  h += '<option value="custom">✎ 직접 쓰기…</option>';
+  sel.innerHTML = h;
+  sel.value = curName ? (at >= 0 ? String(at) : "cur") : "";
+  const r = at >= 0 ? rows[at] : null;
+  if (r && r.ty) sel.style.cssText = tyStyle(r.ty) + ";border-color:" + tyCol(r.ty); else sel.style.cssText = "";
+}
+function pickInto(i, e) {
+  if (i === 0) {
+    setPot(0, e.name, e.desc);
+    const sub = autoSub(e.name, monTypes()); setPot(15, sub ? sub.name : "", sub ? sub.desc : "");
+    renderMon(); toast(sub ? "부수도 「" + sub.name + "」로 (자동)" : "이 역할은 맞는 부수가 없어 부수를 비웠어요"); return;
+  }
+  setPot(i, e.name, e.desc); const ag = autoExpGrant(); renderMon(); if (ag) toast(ag);
+}
+$("m-pot-list").addEventListener("change", (e) => {
+  const sel = e.target.closest && e.target.closest("select.ddsel"); if (!sel) return;
+  const i = +sel.dataset.dd, v = sel.value;
+  if (v === "cur") return;
+  if (v === "custom") { DD_KEY[i] = ""; renderDD(i); $("m-pot-" + i).open = true; setTimeout(() => $("m-pot-" + i + "-name").focus(), 50); return; }
+  if (v === "") { setPot(i, "", ""); if (i === 0) setPot(15, "", ""); renderMon(); return; }
+  pickInto(i, sel._rows[+v]);
+});
+// ── PT 1·2 = 트레이너에 적은 것을 그 트레이너의 포켓몬 전원에게 (사용자 10-19 21:41)
+function trainerPT() { const t = monTrainer(); return t && Array.isArray(t.pt) ? t.pt : null; }
+function syncTrainerPT() {
+  const pt = trainerPT(), t = monTrainer();
+  [17, 18].forEach((i, k) => {
+    const p = pt && pt[k], has = !!(p && (String(p.name).trim() || String(p.desc).trim()));
+    if (has && (S.mon.pots[i].name !== p.name || S.mon.pots[i].desc !== p.desc)) { S.mon.pots[i] = { name: p.name, desc: p.desc }; $("m-pot-" + i + "-name").value = p.name; $("m-pot-" + i + "-desc").value = p.desc; }
+    $("m-pot-" + i + "-name").readOnly = has; $("m-pot-" + i + "-desc").readOnly = has;
+    const n = $("m-pot-" + i + "-from"); n.hidden = !has; if (has) n.innerHTML = `<span class="okc">트레이너 「${esc(t.name)}」의 PT ${k + 1}</span> — 트레이너 탭에서 고치면 그 트레이너의 포켓몬 전원에게 들어가요`;
+  });
 }
 // ── 트레이너 자질 칸 (지시 · 육성 · 통솔) — 트레이너 탭에서 고르거나 직접
 $("m-qgrid").innerHTML = ["지시", "육성", "통솔"].map((k) => `<label class="f">${k}<select id="m-q-${k}" data-q="${k}">${GRADES.map((g) => `<option>${g}</option>`).join("")}</select></label>`).join("");
@@ -1261,6 +1360,9 @@ function renderTr() {
       <div class="tt"><label class="f" style="flex:1">이름<input data-tk="name" value="${esc(t.name)}" autocomplete="off"></label><button class="b sm ghost" data-trdel="${ti}" style="align-self:end">이 트레이너 빼기</button></div>
       <div class="g2" style="grid-template-columns:repeat(4,1fr)">${QUALITIES.map((q) => `<label class="f">${q}<select data-tq="${q}">${gradeOpts(t.q[q] || "C")}</select></label>`).join("")}</div>
       <div class="qtype" data-qt>${esc(qualityType(t.q))}</div>
+      <div class="ptbox"><div class="grp-h">PT 포텐셜 — 이 트레이너의 포켓몬 전원에게</div>
+        ${[0, 1].map((k) => { const p = (t.pt || [])[k] || { name: "", desc: "" }; return `<label class="f">PT ${k + 1} 이름<input data-tpt="${k}.name" value="${esc(p.name)}" autocomplete="off"></label><label class="f">PT ${k + 1} 효과<textarea data-tpt="${k}.desc" rows="2">${esc(p.desc)}</textarea></label>`; }).join("")}
+        <div class="note">포켓몬 탭에서 이 트레이너를 고르면 PT 1·2 칸에 그대로 들어가요. 게임 트레이너 줄에는 안 들어가요 (게임은 PT 를 포켓몬마다 가짐).</div></div>
       ${t.uniq.map((u, ui) => `
       <div class="uq">
         <label class="f">고유 ${ui + 1} 이름<input data-uk="${ui}.name" value="${esc(u.name)}" autocomplete="off"></label>
@@ -1288,7 +1390,8 @@ function updateTrOut() {
 $("t-list").addEventListener("input", (e) => {
   const card = e.target.closest(".tr-card"); if (!card) return;
   const t = S.tr[+card.dataset.ti], el = e.target;
-  if (el.dataset.tk) t.name = el.value;
+  if (el.dataset.tk) { if (S.monTr && S.monTr === t.name) S.monTr = el.value; t.name = el.value; }
+  if (el.dataset.tpt) { const [k, f] = el.dataset.tpt.split("."); t.pt = t.pt || [{ name: "", desc: "" }, { name: "", desc: "" }]; t.pt[+k][f] = el.value; save(); }
   if (el.dataset.tq) { t.q[el.dataset.tq] = el.value; card.querySelector("[data-qt]").textContent = qualityType(t.q); }
   if (el.dataset.uk) { const [ui, f] = el.dataset.uk.split("."); t.uniq[+ui][f] = el.value; }
   updateTrOut();
@@ -1307,7 +1410,8 @@ $("t-add").addEventListener("click", () => { S.tr.push({ name: "", q: { 지시: 
 $("t-in-read").addEventListener("click", () => {
   const ts = parseTrainers($("t-in-text").value);
   if (!ts.length) { $("t-in-msg").innerHTML = '<span class="err">읽은 트레이너가 없어요 (줄 맨 앞에 이름이 있어야 해요).</span>'; return; }
-  S.tr = ts.map((t) => ({ name: t.name, q: Object.assign({ 지시: "C", 육성: "C", 통솔: "C", 능력: "C" }, t.q), uniq: t.uniq }));
+  const oldPt = new Map(S.tr.map((t) => [t.name, t.pt]));   // 줄에는 PT 가 없으니 같은 이름이면 이 페이지에 적은 PT 를 남김
+  S.tr = ts.map((t) => ({ name: t.name, q: Object.assign({ 지시: "C", 육성: "C", 통솔: "C", 능력: "C" }, t.q), uniq: t.uniq, pt: oldPt.get(t.name) }));
   S.trFrom = "읽어 온 줄: " + ts.map((t) => t.name).join(", ");
   renderTr();
   const w = ts.flatMap((t) => t.warn.map((x) => t.name + ": " + x));
@@ -1324,7 +1428,9 @@ $("dock-copy").addEventListener("click", () => {
 // ───────── 고르기 판 (특성 · 기술 · 역할 · 부수 · 빈칸 이름) ─────────
 let P = null;
 fillTypeOptions($("pick-type"), "전부"); $("pick-type").classList.add("typed");
-const NAME_SRC = [["status", "상태"], ["type", "타입"], ["move", "기술"], ["abil", "특성"], ["item", "소지품"]];
+const NAME_SRC = [["stat", "능력치"], ["status", "상태"], ["type", "타입"], ["move", "기술"], ["abil", "특성"], ["item", "소지품"]];
+// 능력치 (테스터 10-19 21:13 「공/방/특공/특방/속/명중/회피/C/전능력치」 — 게임 고유 도우미는 공격~스피드 5개만이었음)
+const STAT_PICK = [["공격", ""], ["방어", ""], ["특공", ""], ["특방", ""], ["스피드", ""], ["명중", ""], ["회피", ""], ["C", "급소 랭크"], ["모든 능력치", "전능력치"], ["임의의 능력치", "고를 수 있음"], ["랜덤한 능력치", "명중·회피 빼고 5개 중"]];
 function openPick(o) {
   P = Object.assign({ mode: "name" }, o); if (o.kind === "list") P.rows0 = o.rows;
   $("pick-type").value = ""; $("pick-cat").value = "";
@@ -1360,6 +1466,7 @@ function pickRows() {
   }
   if (k === "item") return ITEMS.map((x) => ({ n: x[0], meta: x[1], d: x[2], hay: x[1] + " " + x[2] }));
   if (k === "status") return D.status.map((s) => ({ n: s, d: "", hay: s }));
+  if (k === "stat") return STAT_PICK.map(([n, d]) => ({ n, d, hay: n + " " + d }));
   if (k === "type") return TYPES.map((s) => ({ n: s, d: "", hay: s }));
   if (k === "role") return Object.entries(D.roles).filter(([, r]) => r.desc).map(([n, r]) => ({ n, meta: `${r.family} · ${r.tier === "기본" ? "기본" : r.tier === "임명" ? "임명" : "통솔 " + r.tier + " 이상"}${r.sub ? " · 짝 부수 「" + r.sub + "」" : ""}`, d: r.desc, hay: r.family + " " + r.desc }));
   if (k === "sub") return Object.entries(D.subs).map(([n, d]) => ({ n, d, hay: d }));
@@ -1407,6 +1514,12 @@ const TAG_BAR = [
 const KNOWN_SIMPLE = ["자동", "방호", "동조", "수세", "공세", "자질", "공유", "임의", "지연", "함성", "등장", "퇴장"];
 const KNOWN_RE = [/^중첩/, /^동조\s*\(/, /^유일/, /^(이계|필드)\s*\(/, /^(?:자질\s*:\s*)?(지시|육성|통솔|능력)\s*:/, /^해석\s*\(/, /^(등장|퇴장)\s*\(/, /^옵저버/];
 const CIRCLED = "①②③④⑤⑥⑦⑧⑨⑩";
+// 능력치 상승·하락·강화 구문 (구문 DB 에 없어 이 페이지가 더함 — 게임 고유 작성 도우미의 「자신의 능력 랭크 상승」 등과 같은 꼴)
+D.phrases.push(
+  { id: "W001", kind: "phrase", cat: "효과", form: "「XX : +N」 한다.", example: "「공격 : +1」 한다.", note: "자신의 능력 랭크 상승 · XX = 공격·방어·특공·특방·스피드·명중·회피·C·모든 능력치·임의의 능력치 (모바일 편집 추가)", engine: "ok" },
+  { id: "W002", kind: "phrase", cat: "효과", form: "상대의 「XX : -N」 한다.", example: "상대의 「공격 : -1」 한다.", note: "상대의 능력 랭크 하락 (모바일 편집 추가)", engine: "ok" },
+  { id: "W003", kind: "phrase", cat: "효과", form: "자신의 「XX」를 강화(1.N배)한다.", example: "자신의 「공격」을 강화(1.5배)한다.", note: "자신의 능력치 강화 (배율) · 을/를 은 자동 (모바일 편집 추가)", engine: "part" },
+  { id: "W004", kind: "phrase", cat: "효과", form: "아군의 「XX」를 강화(1.N배)한다.", example: "아군의 「공격」을 강화(1.5배)한다.", note: "아군 능력치 강화 (배율) — 게임 고유 작성 도우미와 같은 꼴 (모바일 편집 추가)", engine: "ok" });
 const DB_TAGS = new Set(); for (const p of D.phrases) for (const k of ["form", "example", "note"]) for (const m of String(p[k] || "").matchAll(/【([^】]+)】/g)) DB_TAGS.add(m[1].trim());
 function tagRank(t) { t = t.trim(); if (/^\d+\s*\/\s*시$/.test(t)) return 0; if (t === "선행") return 1; if (t === "강제") return 2; if (t.startsWith("옵저버")) return 3; if (["보급", "소진", "탈진"].includes(t)) return 4; if (t === "사전") return 5; if (t === "비밀") return 6; return -1; }
 function knownTag(t) { t = t.trim(); return tagRank(t) >= 0 || KNOWN_SIMPLE.includes(t) || KNOWN_RE.some((r) => r.test(t)) || DB_TAGS.has(t); }
@@ -1473,8 +1586,10 @@ function defaultsFrom(form, example) {
 function fillForm(form, vals) {
   const toks = slotToks(form); let out = "", pos = 0;
   toks.forEach((t, i) => { out += form.slice(pos, t.start); const v = String(vals[i] ?? "").trim(); out += v || t.s; pos = t.end; });
-  return out + form.slice(pos);
+  return eulReul(out + form.slice(pos));
 }
+// 「X」를 강화 → 받침 있으면 「X」을 (게임 unique_builder _batchim 과 같은 생각)
+function eulReul(t) { return t.replace(/「([^」]+)」(을|를) 강화/g, (m0, w, p) => { const c = w.charCodeAt(w.length - 1); const bat = c >= 0xac00 && c <= 0xd7a3 ? (c - 0xac00) % 28 !== 0 : /[LMNRlmnr136780]$/.test(w); return `「${w}」${bat ? "을" : "를"} 강화`; }); }
 function compose(parts) {
   const bits = [];
   parts.forEach((p, i) => { let s = String(p).trim(); if (!s) return; if (i < parts.length - 1) s = s.replace(/\.$/, ""); bits.push(s); });
@@ -1685,7 +1800,7 @@ function renderMacRows() {
 $("mac-rows").addEventListener("click", (e) => {
   const b = e.target.closest("button");
   if (b && b.dataset.rclr != null) { M.rows[+b.dataset.rclr] = { phrase: null, vals: [] }; renderMacRows(); return; }
-  if (b && b.dataset.nm) { const [ri, k] = b.dataset.nm.split(".").map(Number); openPick({ kind: "name", title: "빈칸 이름 고르기", forText: ROWS[ri][0] + " 줄 빈칸", onPick: (n) => { M.rows[ri].vals[k] = n; renderMacRows(); } }); return; }
+  if (b && b.dataset.nm) { const [ri, k] = b.dataset.nm.split(".").map(Number); const fm = (M.rows[ri].phrase || {}).form || ""; const statForm = /XX : [±+\-]?N|「XX」(을|를)\(?.?\)? ?강화|능력치/.test(fm); openPick({ kind: "name", src: statForm ? "stat" : undefined, title: "빈칸 이름 고르기", forText: ROWS[ri][0] + " 줄 빈칸", onPick: (n) => { M.rows[ri].vals[k] = n; renderMacRows(); } }); return; }
   if (e.target.tagName === "INPUT") return;
   const row = e.target.closest(".prow"); if (!row) return;
   M.active = +row.dataset.ri;
