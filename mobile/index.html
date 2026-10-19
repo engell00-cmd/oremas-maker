@@ -690,6 +690,7 @@ const TBL_EXCLUDE = {
   부수: ["프라이멀 헌트", "와일드 헌트", "브레이크 헌트", "레스큐 헌트", "새비지 헌트", "리서치 헌트",
     "마법약"],   // 『마술사』 전용 → 『마도』의 『마도약』을 씀
   특권: [/^프로모션\s*:/],
+  분류: ["식인종", "히토쿠이", "원령종", "신화종", "인도자"],   // 22:01 「분류에서 식인종, 원령종, 신화종, 인도자 지워두고」 (히토쿠이 = 식인종의 다른 이름이라 같이)
 };
 const tblExcluded = (slot, n) => (TBL_EXCLUDE[slot] || []).some((e) => e instanceof RegExp ? e.test(String(n).trim()) : e === String(n).trim());
 // 역할 = 게임 데이터(배틀 역할표 role_db · 포텐셜 목록 pot_lists)에 있는 것만 (사용자 21:13 「연결한 프로젝트 + 데이터 기준으로 없는 역할들은 전부 삭제」)
@@ -704,7 +705,7 @@ function applyTable(t) {
   if (!TB["전용"].some((x) => x.kind === "전용(추가)")) TB["전용"] = TB["전용"].concat([MAGEOM]);
   ROLES_M = mergeList("역할", PL.roles).map((r) => r.block ? r : Object.assign(r, { block: /선발로써|선발로서/.test(r.desc) ? "선발" : "" }))
     .map((r) => r.name in ROLE_BLOCK_FIX ? Object.assign(r, { block: ROLE_BLOCK_FIX[r.name] }) : r);
-  SUBS_M = mergeList("부수", PL.subs).filter((x) => !tblExcluded("부수", x.name)); CLASSES_M = mergeList("분류", PL.classes); SEN_M = mergeList("선", PL.sen);
+  SUBS_M = mergeList("부수", PL.subs).filter((x) => !tblExcluded("부수", x.name)); CLASSES_M = mergeList("분류", PL.classes).filter((x) => !tblExcluded("분류", x.name)); SEN_M = mergeList("선", PL.sen);
   PRIV_M = mergeList("특권", PL.privileges).filter((x) => !tblExcluded("특권", x.name));
   ROLES_M = ROLES_M.filter((x) => !tblExcluded("역할", x.name));
   for (const s of ["회피", "내성", "격"]) SANS_TB[s] = (TB[s] || []).map((r) => {
@@ -1061,7 +1062,14 @@ $("m-in-read").addEventListener("click", () => {
   monMsg(`<span class="okc">「${esc(r.data.name)}」을 읽었어요.</span>` + (lines.length > 1 ? `<div class="warn">줄이 ${lines.length}개라 첫 줄만 읽었어요.</div>` : "") + (r.warns.length ? '<ul class="warn">' + r.warns.map((w) => "<li>" + esc(w) + "</li>").join("") + "</ul>" : ""));
 });
 // ── 처음 화면 · 새 포켓몬
-const isBlankMon = (m) => !String(m.name).trim() && !String(m.ability).trim() && m.pots.every((p) => !String(p.name).trim() && !String(p.desc).trim()) && m.moves.every((x) => !String(x.name).trim()) && !String(m.sig.name).trim() && !String(m.sig.desc).trim();
+// 새 포켓몬 기본값 (사용자 10-19 22:01 「역할은 디폴트를 바닐라 · 분류는 디폴트를 현대종」) — 기본값만 있는 칸은 「빈 것」으로 봄
+const MON_DEFAULTS = { 0: "바닐라", 1: "현대종" };
+function applyMonDefaults(m) {
+  for (const [i, n] of Object.entries(MON_DEFAULTS)) { const list = +i === 0 ? ROLES_M : CLASSES_M, r = plFind(list, n); if (r && !String(m.pots[i].name).trim()) m.pots[i] = { name: r.name, desc: r.desc }; }
+  const sub = autoSub(m.pots[0].name, m.types.filter(Boolean)); if (sub && !String(m.pots[15].name).trim()) m.pots[15] = { name: sub.name, desc: sub.desc };
+  return m;
+}
+const isBlankMon = (m) => !String(m.name).trim() && !String(m.ability).trim() && m.pots.every((p, i) => (!String(p.name).trim() && !String(p.desc).trim()) || (MON_DEFAULTS[i] && p.name === MON_DEFAULTS[i])) && m.moves.every((x) => !String(x.name).trim()) && !String(m.sig.name).trim() && !String(m.sig.desc).trim();
 function refreshFresh() {
   const fresh = !S.monStarted && isBlankMon(S.mon);
   $("view-mon").classList.toggle("fresh", fresh);
@@ -1069,7 +1077,7 @@ function refreshFresh() {
   $("m-now").innerHTML = S.mon.name.trim() ? `지금 만드는 포켓몬 <b>『${esc(S.mon.name)}』</b>` : "새 포켓몬 (이름 없음)";
 }
 function startNew() {
-  S.mon = blankMon(); S.monFrom = "새 포켓몬"; S.monStarted = true; S.mon.forms = [];
+  S.mon = applyMonDefaults(blankMon()); S.monFrom = "새 포켓몬"; S.monStarted = true; S.mon.forms = [];
   for (const d of document.querySelectorAll("#view-mon > details")) d.open = false;
   $("m-basic").open = true; monMsg("");
   renderMon(); save();
