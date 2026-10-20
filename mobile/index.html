@@ -868,7 +868,7 @@ function save() { clearTimeout(saveT); saveT = setTimeout(() => { try { localSto
 
 function toast(t) { const el = $("toast"); el.textContent = t; el.classList.add("show"); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove("show"), 1800); }
 async function copyText(text, area) {
-  const okMsg = "줄을 복사했어요 — 휴대폰 게임으로 돌아가면 [넣기]가 떠요";   // 235단계: 게임(휴대폰)이 복사한 줄을 알아채고 [넣기]
+  const okMsg = "줄을 복사했어요 — 휴대폰 게임으로 돌아가면 [넣기]가 떠요";   // 236단계: 게임(휴대폰)이 복사한 줄을 알아채고 [넣기]
   try { await navigator.clipboard.writeText(text); toast(okMsg); return; } catch (e) {}
   area.focus(); area.select(); area.setSelectionRange(0, text.length);
   try { if (document.execCommand("copy")) { toast(okMsg); return; } } catch (e) {}
@@ -1937,7 +1937,7 @@ $("mac-x").addEventListener("click", closeMacro);
 $("mac-cancel").addEventListener("click", closeMacro);
 document.addEventListener("keydown", (e) => { if (e.key !== "Escape") return; if (!$("help").hidden) closeHelp(); else if (!$("pick").hidden) closePick(); else if (!$("sans").hidden) closeSans(); else if (!$("mac").hidden) closeMacro(); });
 
-// ───────── 235단계: 게임 [웹에서 편집] → 주소 #m=…&t=… (base64url UTF-8 붙여넣기 줄) 로 받아 바로 열기 ─────────
+// ───────── 236단계: 게임 [웹에서 편집] → 주소 #m=…&t=… (base64url UTF-8 붙여넣기 줄) 로 받아 바로 열기 ─────────
 function b64uDecode(s) {
   s = String(s || "").replace(/-/g, "+").replace(/_/g, "/"); while (s.length % 4) s += "=";
   const bin = atob(s); return new TextDecoder("utf-8").decode(Uint8Array.from(bin, (c) => c.charCodeAt(0)));
