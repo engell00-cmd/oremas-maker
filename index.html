@@ -169,7 +169,7 @@ table.col tr.open td{background:var(--surface2)}
       <div class="field" id="f-zksrc" hidden><label for="zksrc">속별</label>
         <select id="zksrc"><option value="mix" selected>섞기 (예시 · 새로)</option><option value="ex">시트 예시에서 고르기</option><option value="new">새로 만들기 (구문 DB)</option></select>
         <div style="grid-column:1/-1;display:flex;gap:6px;align-items:center;font-size:12px;line-height:1.4;color:var(--muted)"><span id="zk-src" class="zk-src" style="flex:1;min-width:0"></span><button type="button" id="zk-sync" style="flex:none;font-size:12px;padding:4px 8px">↻ 시트에서 다시 받기</button></div></div>
-      <div class="field" id="f-role" hidden><label for="role">역할</label>
+      <div class="field" id="f-role" hidden><span id="role-src" style="grid-column:1/-1;order:9;font-size:12px;line-height:1.4;color:var(--muted)"></span><label for="role">역할</label>
         <select id="role"><option value="">랜덤</option><option value="lead">선발</option><option value="rot">회전역 (어시스트·인챈터)</option><option value="killer">킬러</option><option value="ace">에이스</option><option value="avenger">어벤져</option><option value="vanilla">바닐라</option></select></div>
       <div class="field"><label for="habitat">서식지</label><select id="habitat"></select></div>
       <div class="field"><label for="motif">모티프</label><select id="motif"></select></div>
@@ -384,6 +384,11 @@ const ZOKEX=[["던전 슬러그","0","《필드 효과》가 발동하고 있을
 const ZOK_NO=["PT에 참여하고 있는한 아군의 『사랑의 정』이 발동하지 않게 된다.","PT에 참여하고 있을 때 트레이너가 「통솔 : C」 이하의 경우 「통솔 : B」로 만든다.","PT의 트레이너일 때 『회피』『내성』『격』『선』『범용』이 『극』에 도달한다.","PT의 트레이너일 때 상대가 기술을 내보내면 『물러나!』『피해라!』에 【임의】를 부여할 수 있다.","PT의 트레이너일 때 자신에게 발전한 『선발』『킬러』『어시스트』 중 하나를 추가로 부여한다.","①흡혈귀의 귀족으로써 『뱀피릭』을 보유한다.\n②『뱀피릭』의 【소진】을 제거한다.","「HP」를 회복하지 않는 「나무열매」를 먹었을 때 「HP」를 1/8만큼 회복한다.","「∴」을 얻는다. 「∴」을 지니고 있는 상대에게 대해 자신의 기술의 위력이 저하(0.8배)한다.","「∴」이 부여된 포켓몬의 기술의 위력을 반감한다.","「베기」 기술을 내보낼 때 자신의 「공격」을 가장 높은 종족치와 같은 랭크로 만든다.","「속이기」를 명중시켰을 때 아군과 에리어를 뒤바꾼다.","「알그룹 : 인간형」인 상대에게 기술이 급소에 맞기 쉬워진다(C+1).","「작은 대미지」 이하의 대미지를 반드시 견딘다.","「큰 대미지」 이상의 대미지를 받았을 때 상대를 강제 교대시킬 수 있다.","「타입 : 강철」 공격으로 「빈사」 상태가 되었을 때 상대를 「회복봉인」 상태로 만들고 상대에게 「HP : 1/4」만큼 비례 대미지를 입힌다.","「특성 : 사격」을 포함하는 「특성」이 발동했을 때 상대를 「특성 : 철혈」로 만든다.","『계약의 특권』이 부여되어 있는 한 트레이너가 『수화』의 능력을 얻는다.","『몬스터 헌터』의 아종으로써 「알그룹 : 인간형」인 상대의 『방호 포텐셜』을 무시한다.","『몬스터 헌터』의 아종으로써 저확률로 「알그룹 : 인간형」의 기술을 회피한다.","『블로커』로 임명되어 있을 때 공격하면 자신이 기술로 받을 대미지를 완화(0.8배)한다.","『아라가미』인 상대의 『종족 포텐셜』을 무효화한다.","『야생』/「밀리아」를 포획한 상태이기에 『4식 6령』을 사용할 수 있다.","『열심 리본』이 부여되어있는 한 자신의 「HP」에 상승 보정을 얻는다.","【1/시】/PT 전원이 기술 「머신건」을 내보낼 수 있다. 이때 「공격」을 가장 높은 종족치와 같은 랭크로 만든다.","【1/시】/PT 전원이 기술 「어둠의칼」을 내보낼 수 있다. 이때 「공격」을 가장 높은 종족치와 같은 랭크로 만든다.","【1/시】【자동】/「∴」이 부여된 포켓몬의 기술의 대미지를 반감한다.","【1/시】【자동】/「독」 상태의 아군과 교대하여 필드에 등장했을 때 아군의 상태 이상을 자신에게 옮긴다.","【1/시】【자동】/공격을 받아 「HP : 1/2 이하」가 되었을 때 상대에게 「씨뿌리기」를 내보낸다.","【1/시】【자동】/상대를 「풀죽음」 상태로 만든 턴의 가장 마지막에 「변화기」에 의한 추가 행동을 얻는다.","【1/시】【자동】/상대의 「깨트리기」 기술을 실패시킨다.","【1/시】【자동】/아군의 상태 이상을 치유한다.","【1/시】【자동】【방호】/「HP : 가득」일 때 상대의 「물리기」를 무효화하고 「HP : 1/4」만큼 소모한다.","【1/시】【자동】【방호】/상대의 「단일기」를 무효화하고 「HP : 1/2」만큼 소모한다.","【H】게임일 때 PT에 참여하고 있는 아군 전원의 「공격/방어/특공/특방/스피드」를 강화(1.1배)한다.","【통솔 : A】/자신에게 『에이스』를 제외한 『기본 역할』과 『추가 역할』을 임명할 수 있다.","【퇴장 (빈사)】/죽어내밀기로 필드에 등장한 아군을 자신과 같은 「타입」으로 만들 수 있다.","공격하지 않았을 때 상대의 기술의 위력을 「20」만큼 감소시킨다.","공격하지 않았을 때 자신의 「방어/특방」의 종족치를 자신의 가장 높은 종족치와 같은 랭크로 만든다.","남은 수명이 적을 수록 『포텐셜』의 발동 확률이 상승한다. 단, 2024/11/12에 죽는다.","달의 성배에게 소환된 『서번트』로써 저확률로 트레이너의 『지령』을 다시 받는다.","변형 기계를 가지고 있는 『메다로트』로써 『에리어 체인지』할 수 있다.","상대 트레이너가 「능력 : A」 이상일 때 상대를 「특공 : E-」로 만든다.","상대가 트레이너 랭크 「B」 이상일 때 자신의 「공격/방어/특공/특방/스피드」에 「+」 보정을 얻는다.","상대의 「특성 : 매직, 마법」을 포함하는 「특성」을 무효화한다.","상대의 임의 교대시 발동하는 「특성」을 무효화한다.","아군에게 「변화기」를 내보냈을 때 턴 종료 시까지 「전체기」의 대상이 되지 않는다.","이차원의 『듀얼 몬스터』의 힘에 의해 상대의 『익스펜션』을 무효화한다.","자신(아군)의 「HP」가 회복했을 때 상대를 「도발」 상태로 만든다.","자신에 대한 BD의 「육성」을 트레이너의 「능력」과 같은 랭크로 만든다.","자신에게 「Lv : +5」 한다.","자신에게 대해서만 트레이너의 「육성」을 「능력」의 랭크와 같은 랭크로 만든다.","자신의 「단일기」의 명중률을 강화(1.2배)한다. 자신의 「전체기」의 명중률을 저하(0.8배)한다.","자신의 기술이 상대의 상태 이상을 덮어쓴다.","자신의 참여하고 있는 PT가 《출범》일 때 이 포텐셜을 『스카우터』로써 취급한다.","자신이 「소리」 기술을 내보낼 때 자신의 「특공」을 자신의 「공격」의 종족치와 같은 랭크로 만든다.","자진에 「리플렉터」 등의 기술이 전개되어 있을 때 드물게 추가 행동을 얻는다.","참전하고 있는 대회의 랭크가 「S」일 때 자신의 「공격/방어/특공/특방/스피드」를 1랭크 상승시킨다.","트레이너가 「♀」일 때 자신을 「스피드 : AA+」로 하고 하늘에 떠오른다.","트레이너가 「남성」일 때 『사랑의 정』을 얻는다.","트레이너에게 「AA」랭크의 자질이 있을 때 PT에 참여 시 자신의 임의의 종족치를 「AA」랭크로 만든다.","필드를 떠날 때 같은 「타입」인 아군의 「임의의 능력치 : +1」 한다.","필드를 떠날 때 아군의 『킬러』가 필드에 등장하여 최초로 내보내는 기술의 위력을 2배로 만든다."];
 const ZOK_BUILT_AT='10-20 10:36';
 
+// 시트 「테이블(싱글)」 AQ:AT 「00. 역할」·「13. 부수」 2026-10-20 11:2x 판 (같은 이름은 위의 것) — [이름, 효과, 비고]
+const ROLES_BUILT=[["경화","선발로써 필드에 등장했을 때 「방어 : +1」 한다.","선발 등장 시 발동"],["광주","선발로써 필드에 등장했을 때 「스피드 : +1」 한다.","선발 등장 시 발동"],["귀인","선발로써 필드에 등장했을 때 「공격 : +1」 한다.","선발 등장 시 발동"],["마도","선발로써 필드에 등장했을 때 「특공 : +1」 한다.","선발 등장 시 발동"],["바닐라","아무런 역할도 가지지 않았음을 뜻하는 포텐셜. 파티 내에 몇 체라도 가질 수 있다.","수식 맞추기용."],["베테랑","【1/시】/트레이너에게 「타임」을 사용하게 할 수 있다. 독자적으로 『전용 포텐셜』을 보유한다.","치명적인 결점 포텐셜 습득 강제. 『이명』이 있을 수 있음"],["부동의 에이스","「이때다!」일 때 「모든 능력치 : +1」하고 「C : +1」 한다.","「통솔 : C」 이상"],["선구의 에이스","선발로써 필드에 등장했을 때 「모든 능력치 : +2」 한다.","「통솔 : A」 이상. 파티 내 1체."],["선발","【방호】/선발로써 필드에 등장했을 때 자신의 모든 능력을 강화(1.1배)한다.","선발 등장 시 발동"],["수인","선발로써 필드에 등장했을 때 「C : +1」 한다.","선발 등장 시 발동"],["심안","선발로써 필드에 등장했을 때 「회피」를 상승시킨다.","선발 등장 시 발동"],["야생 포켓몬","【야생】/필드에 등장했을 때 「임의의 능력치 : +2」 한다.","『야생』 전용"],["야생의 두목","【야생】/필드에 등장했을 때 「모든 능력치 : +2」 한다.","『야생』 전용"],["양대간판","【방호】/①자신의 모든 능력을 강화(1.33배)하고 기술이 급소에 맞기 쉬워진다(C+1).\n②적진에 『킬러』가 있으면 ①이 무효화된다.","「통솔 : A」 이상"],["어드벤쳐","상대가 【야생】일 때 필드에 등장하면 「임의의 능력치 : +2」 한다.",""],["어벤져","죽어내밀기로 필드에 등장했을 때 「임의의 능력치 : +1」 한다.","「통솔 : A」 이상"],["어시스트","임의 교대할 때 『에이스』의 「임의의 능력치 : +1」 한다.","에이스와 교대 시 발동"],["어시스트 : 감마","필드를 떠날 때 『에이스』의 「임의의 능력치 : +1」 한다.","에이스 등장 시 발동"],["어시스트 : 베타","필드를 떠날 때 『에이스』가 필드에 등장하여 최초로 받는 기술의 위력을 반감한다.","에이스 등장 시 발동"],["어시스트 : 알파","필드를 떠날 때 『에이스』가 필드에 등장하여 최초로 내보내는 기술의 위력을 2배로 한다.","에이스 등장 시 발동"],["에이스","【방호】/「이때다!」일 때 모든 능력을 강화(1.33배)하고 기술이 급소에 맞기 쉬워진다(C+1).","「통솔 : C」 미만. 소지 3체 이하 및 『에이스』 대면 시 발동"],["엠페러","①필드에 등장했을 때 상대의 「임의의 능력치 : -1」 한다.\n②【방호】/상대의 모든 능력치를 저하(0.85배) 시킨다.","「통솔 : S」 이상 또는 『고유』나 『전용』이 필요."],["응안","선발로써 필드에 등장했을 때 「명중 : +1」 한다.","선발 등장 시 발동"],["인챈터","필드를 떠날 때 아군의 「임의의 능력치 : +1」 한다.","「통솔 : A」 이상"],["킬러","『에이스』에 대한 기술의 위력을 강화(1.5배)한다.","에이스에게 타격 시 발동"],["킬러 : 감마","①상대가 『에이스』일 때 턴 개시 시 「스피드」를 2배로 만든다.\n②『에이스』의 「스피드/회피」의 상승(강화)를 무시한다.","자신의 행동 시 발동"],["킬러 : 베타","【방호】/①『에이스』에게 받는 기술의 위력을 반감한다.\n②『에이스』의 「공격/특공」의 상승(강화)를 무시한다.","에이스에게 피격 시 발동"],["킬러 : 알파","①『에이스』에 대한 기술의 위력을 강화(1.5배)한다.\n②『에이스』의 「방어/특방」의 상승(강화)를 무시한다.","에이스에게 명중 시 발동"],["타이트 엔드","『선발』, 『킬러』, 『어시스트』의 『역할』을 가진다.","특수"],["타이트 엔드 : 감마","『선발』, 『킬러 : 감마』, 『어시스트 : 감마』의 『역할』을 가진다.","특수"],["타이트 엔드 : 베타","『선발』, 『킬러 : 베타』, 『어시스트 : 베타』의 『역할』을 가진다.","특수"],["톱 배터","선발로써 필드에 등장했을 때 「임의의 능력치 : +2」 한다.","「통솔 : A」 이상."],["현자","선발로써 필드에 등장했을 때 「특방 : +1」 한다.","선발 등장 시 발동"],["워락","상대에게 발생하는 「회복」을 반전시킨다.",""],["클리너","필드에 등장했을 때 상대의 능력치 하나의 상승을 초기화한다.",""],["탐사대원","필드에 등장했을 때 「임의의 능력치 : +1」 한다.",""],["탐사대장","필드에 등장했을 때 「모든 능력치 : +1」 한다.",""],["수렵대원","【방호】/『야생의 두목』의 능력 상승을 무시한다.",""],["보급대원","필드를 떠날 때 아군의 소모(파괴)된 「소지품」을 「리사이클」한다.",""],["구급대원","필드를 떠날 때 아군의 체력을 1/4회복해 상태이상을 해제한다.",""],["추적대원","필드에 있는 한 상대는 통상 교대 이외로 교대할 수 없다.",""],["조사대원'","①필드에 등장했을 때 상대의 데이터를 해석할 수 있다.\n②상대가 필드에 등장했을 때 ①을 발동할 수 있다.",""],["역할 포텐셜","임명할 수 있는 『역할』을 중복없이 기입한다. 「통솔」에 따라 『역할』이 늘어난다.","없다면 『바닐라』"]];
+const SUBS_BUILT=[["컨트렉트","상대가 공격 이외의 대미지를 받았을 때 「랜덤한 능력치 : +1」 한다.",""],["클린 업","【1/시】/자신의 공격에 「고속스핀」 효과를 부여한다.",""],["제스터","『타이트 엔드』에 임명되어 있을 때 이 포텐셜을 『스타터』『챌린지』『리턴 큐어』로 취급한다.","『타이트 엔드』 전용"],["조커","상대와 같은 『역할』일 때 기술의 위력을 강화(1.5배)한다.","『타이트 엔드』 전용"],["챌린지","필드에 등장했을 때 상대 『에이스』를 턴 종료 시까지 「도발」 상태로 만든다.","『킬러』 전용"],["카운터 아츠","「이때다!」일 때 자신의 「회피」를 강화(1.33배)한다. 『에이스 킬러』가 있으면 발동하지 않는다.","『에이스』 전용"],["슬러그 아츠","「이때다!」일 때 자신의 「명중」을 강화(1.33배)한다. 『에이스 킬러』가 있으면 발동하지 않는다.","『에이스』 전용"],["어드바이스","트레이너가 「타임」을 사용했을 때 상대의 데이터을 해석할 수 있다.","『베테랑』 전용."],["앰부시","상대 『에이스』가 필드에 등장했을 때 다음에 내보내는 기술이 급소에 맞기 쉬워진다(C+4).","『킬러』 전용"],["경화약","【1/시】【자동】/「방어」 등의 기술로 상대의 기술을 무효화했을 때 자신의 「방어」를 상승시킨다.","『경화』 전용."],["광주약","【1/시】【자동】/「방어」 등의 기술로 상대의 기술을 무효화했을 때 자신의 「스피드」를 상승시킨다.","『광주』 전용."],["귀인약","【1/시】【자동】/「방어」 등의 기술로 상대의 기술을 무효화했을 때 자신의 「공격」을 상승시킨다.","『귀인』 전용."],["마도약","【1/시】【자동】/「방어」 등의 기술로 상대의 기술을 무효화했을 때 자신의 「특공」을 상승시킨다.","『마도』 전용."],["만능약","【1/시】【자동】/「방어」 등의 기술로 상대의 기술을 무효화했을 때 임의의 능력치를 상승시킨다.","『톱 배터』  전용"],["수인약","【1/시】【자동】/「방어」 등의 기술로 상대의 기술을 무효화했을 때 자신의 「C」를 상승시킨다.","『수인』 전용."],["심안약","【1/시】【자동】/「방어」 등의 기술로 상대의 기술을 무효화했을 때 자신의 「회피」를 상승시킨다.","『심안』 전용."],["응안약","【1/시】【자동】/「방어」 등의 기술로 상대의 기술을 무효화했을 때 자신의 「명중」을 상승시킨다.","『응안』 전용."],["현자약","【1/시】【자동】/「방어」 등의 기술로 상대의 기술을 무효화했을 때 자신의 「특방」을 상승시킨다.","『현자』 전용."],["회복약","【1/시】【자동】/「방어」 등의 기술로 상대의 기술을 무효화했을 때 자신의 HP를 1/4만큼 회복한다.","모든 선발계가 습득 가능"],["스타터","선발로써 필드에 등장했을 때 턴 종료 시까지 자신의 모든 능력을 강화(1.2배)한다.","모든 선발계가 습득 가능"],["킹 오더","상대로부터의 능력 감소(저하)를 무효화한다.","『엠페러』 전용"],["택티스코프","적진에 데이터를 해석한 포켓몬이 있을 때 자신의 「명중/회피」를 강화(1.1배)한다.","『스카우터』 전용"],["투 톱","아군의 『에이스』가 「빈사」상태일 때 자신에게 『에이스』를 부여한다.","『양대간판』 전용."],["투쟁본능","【야생】【방호】/저확률로 상대의 공격을 무효화한다.","『야생』 전용"],["퍼스트 아츠","①상대로부터의 「강제 교대」 효과를 무효화한다.\n②상대의 공격 이외의 대미지를 반감한다.","『선구의 에이스』 전용"],["서플라이","【1/시】/임의 교대할 때 아군의 소모된 「소지품」을 「리사이클」 한다.","『인챈터』  전용"],["리벤지 디바인","죽어내밀기로 필드에 등장했을 때 「HP : 1/4」만큼 회복하고 상태 이상을 치유한다.","『어벤져』  전용"],["리턴 큐어","임의 교대할 때 중확률로 아군의 상태 이상을 치유한다.","『어시스트』 전용"],["리턴 힐","임의 교대할 때 중확률로 아군의 「HP : 1/4」만큼 회복시킨다.","『어시스트』 전용"],["프라이멀 헌트","공격을 무효화하는 상대의  【방호】 포텐셜을 무효화한다.",""],["와일드 헌트","상대의 「회피한다」의 효과를 가진 포텐셜을 무효화한다.",""],["브레이크 헌트","임의 교대할 때 중확률로 상대의 「소지품」을 파괴한다.",""],["레스큐 헌트","아군과 임의교대할 때, 아군의 랜덤한 능력치를 올린다.",""],["새비지 헌트","상대의 『주인의 호령』발동 시, 상대보다 먼저 행동한다.",""],["리서치 헌트","PT에 참가하고 있을 때, 상대가 「선행입력」한 포텐셜의 상세를 확인할 수 있다.",""]];
+const ROLES_BUILT_AT='10-20 11:2x';
+
 // ───────── G8 (10-20): 계제 = 구문 DB 조각을 이어 붙인 문장 (claude/pokemon-maker-g8.md) ─────────
 // 사용자 결정 10-20 02:37 「조각을 조합해서 새 문장」 · 「조합 문장만」(원작 문장 풀 안 씀) · 03:06 이름 = 한자 2글자 낱말 (한자는 안 보임)
 // COMBO = 게임 엔진이 읽는다고 확인된 틀 (작업 공간에서 Godot 로 확인 — 빈칸을 무작위로 채운 4,000문장 모두 읽힘)
@@ -445,7 +450,13 @@ function g8Noun(fam,types){
 }
 // 생성기 후보 (예전 원작 문장 풀 자리) — {o:{s,n}, noun, fit:{need,item}, fam, key}
 function g8Cands(types,tier,mode,g,st,max){
-  const wild=mode==='wild'; const out=[]; const seen=new Set(); const order=shuffle(COMBO.C);
+  const wild=mode==='wild'; const out=[]; const seen=new Set(); let order=shuffle(COMBO.C);
+  // 메인 기믹이 있으면 그 기믹이 들어가는 틀을 앞에 (10-20 11:2x 사용자 「기믹 줄 최소 2줄」 — 후보 2,500개 안에 꼭 들게)
+  if(g&&g.kind&&g.val){const hit=c=>{const h=c[0]>=0?COMBO.H[c[0]]:null;if(g.kind==='timing')return !!h&&h[0]===g.val;
+      const txt=(h?h[1]:'')+(c[2]>=0?COMBO.S[c[2]]:'')+COMBO.E[c[3]][1];
+      if(g.kind==='status')return (/\{AIL\}/.test(txt)&&COMBO.V.AIL.includes(g.val))||(/\{VOL\}/.test(txt)&&(COMBO.V.VOL||[]).includes(g.val))||txt.includes('「'+g.val+'」');
+      return /소지품/.test(txt);};
+    const first=new Set(order.filter(hit).slice(0,300)); order=[...first].concat(order.filter(c=>!first.has(c)));}   // 앞 300개만 — 나머지 줄(역할 열쇠말 등) 후보가 기믹으로 덮이지 않게
   for(const c of order){
     if(out.length>=(max||2500))break;
     const h=c[0]>=0?COMBO.H[c[0]]:null, e=COMBO.E[c[3]];
@@ -455,7 +466,7 @@ function g8Cands(types,tier,mode,g,st,max){
     if(tier<=2&&STRONG.test(r.desc))continue;
     if((wild?EXC_WILD:EXC_TRAINER).test(r.desc)||BAN_RECIPE.test(r.desc))continue;
     const fam=famOf(r.desc);
-    out.push({o:{s:r.desc,n:'(구문 DB 조합)'},noun:g8Noun(fam,types),fit:{need:r.need,item:''},fam,key:keyOf(r.desc)});
+    out.push({o:{s:r.desc,n:'(구문 DB 조합)'},noun:g8Noun(fam,types),fit:{need:r.need,item:''},fam,key:keyOf(r.desc),hid:h?h[0]:''});
   }
   return out;
 }
@@ -555,6 +566,102 @@ async function zokMcpOk(){try{const p=window.claude&&claude.use?await claude.use
   const s=await p.state('mcp:Google Sheets').catch(()=>'unavailable');return s==='granted';}catch(e){return false}}
 setTimeout(()=>{const b=$('zk-sync');if(b)b.addEventListener('click',()=>zokSync(true));zokCache();zokSync(false);},0);   // $ 가 이 코드 뒤에서 만들어져서 한 박자 뒤에
 
+// ───────── G8 (10-20 11:2x): 역할 = 시트 「테이블(싱글)」 「00. 역할」 전부 · 부수 = 「13. 부수」 · 메인 기믹 줄 2줄 보장 · 메인 기믹 「타이밍」 ─────────
+// 사용자 10-20 11:23 「왜 역할이 어벤저까지밖에 없고 · 마비를 트리거로 작성했는데 마비 계제가 하나도 안 나오지」 · 11:24 「연결한 시트의 테이블 (싱글) 참조해봐」
+// 고름 (질문 카드): 역할 = 시트 역할 전부 + 시트에서 받기 · 기믹 = 기믹 줄 최소 2줄 보장 · 11:26 「구문 DB 에서 타이밍도 추가해줘」 → 메인 기믹 종류 「타이밍 (구문 DB)」
+// 역할 묶음(작전 틀: 직무 기본기·종족치 꼴·열쇠말)은 예전 6묶음 그대로 — 새 역할은 Claude 가 가까운 묶음에 붙임 (G8_FAM_ADD, 확인 받을 것)
+const G8_FAM_ADD={'선발':'lead','수인':'lead','심안':'lead','응안':'lead','타이트 엔드':'lead','타이트 엔드 : 감마':'lead','타이트 엔드 : 베타':'lead',
+  '어시스트':'rot','보급대원':'rot','구급대원':'rot','킬러':'killer','클리너':'killer','수렵대원':'killer','에이스':'ace','엠페러':'ace',
+  '베테랑':'vanilla','워락':'vanilla','어드벤쳐':'vanilla','탐사대원':'vanilla','탐사대장':'vanilla','추적대원':'vanilla',"조사대원'":'vanilla','조사대원':'vanilla',
+  '야생 포켓몬':'wild','야생의 두목':'wild'};
+// 「랜덤」으로 고를 때 쓰는 역할 (조건이 까다로운 엠페러·베테랑·타이트 엔드·선구의 에이스·시트 아래쪽 탐사대 줄은 직접 고를 때만)
+const G8_RAND={lead:['귀인','마도','광주','경화','현자','수인','심안','응안','선발','톱 배터'],rot:['어시스트','어시스트 : 알파','어시스트 : 베타','어시스트 : 감마','인챈터'],
+  killer:['킬러','킬러 : 알파','킬러 : 베타','킬러 : 감마'],ace:['에이스','부동의 에이스','양대간판'],avenger:['어벤져']};
+const G8_FAM_KO={lead:'선발 계열',rot:'회전역 (어시스트·인챈터)',killer:'킬러 계열',ace:'에이스 계열',avenger:'어벤져',vanilla:'바닐라 · 그 밖'};
+const G8_LATE=new Set(['탐사대원','탐사대장','수렵대원','보급대원','구급대원','추적대원',"조사대원'",'조사대원']);   // 시트 1010행 근처 묶음
+// 사용자 10-20 11:48 「탐사대원처럼 「대원」 들어간 거랑 「헌트」 들어간 건 무시해」
+const g8SkipRole=r=>/대원|탐사대장/.test(r[0]),   // 11:55 「탐사대장도 빼고」
+      g8SkipSub=r=>/헌트/.test(r[0]);
+let G8_ROLES=ROLES_BUILT.filter(r=>!g8SkipRole(r)), G8_SUBS=SUBS_BUILT.filter(r=>!g8SkipSub(r));
+let G8_RSRC={kind:'built',at:ROLES_BUILT_AT,n:G8_ROLES.length,err:''};
+const g8RoleRow=n=>G8_ROLES.find(r=>r[0]===n);
+const g8OneLine=t=>String(t||'').replace(/\r?\n/g,' ').replace(/\s+/g,' ').trim();
+function g8RoleSelect(){
+  const s=$('role');if(!s)return;const cur=s.value;s.innerHTML='';s.append(new Option('랜덤',''));
+  const og0=document.createElement('optgroup');og0.label='묶음에서 무작위';for(const f of ['lead','rot','killer','ace','avenger','vanilla'])og0.append(new Option(G8_FAM_KO[f]+' — 무작위',f));s.append(og0);
+  const by={};for(const [n] of G8_ROLES){const f=ROLE_FAM_OF[n]||'vanilla';if(f==='wild'||n==='역할 포텐셜')continue;const g=G8_LATE.has(n)?'late':f;(by[g]=by[g]||[]).push(n);}
+  for(const f of ['lead','rot','killer','ace','avenger','vanilla','late']){if(!by[f])continue;const og=document.createElement('optgroup');og.label='시트 역할 · '+(f==='late'?'시트 아래쪽':G8_FAM_KO[f]);
+    for(const n of by[f]){og.append(new Option(n,'r:'+n));ROLE_OPT['r:'+n]=n;}s.append(og);}
+  if([...s.options].some(o=>o.value===cur))s.value=cur;
+}
+function g8RolesFromRows(rows){
+  const roles=[],subs=[],sr=new Set(),ss=new Set();
+  for(const r0 of rows){const r=[0,1,2,3].map(j=>String((r0||[])[j]??'').trim());const [k,n,e,b]=r;if(!n||!e)continue;
+    if(k==='00. 역할'&&n!=='역할 포텐셜'&&!sr.has(n)){sr.add(n);roles.push([n,e,b]);}
+    if(k==='13. 부수'&&n!=='부수 포텐셜'&&!ss.has(n)){ss.add(n);subs.push([n,e,b]);}}
+  return {roles,subs};
+}
+function g8UseRoles(roles,subs,src){roles=roles.filter(r=>!g8SkipRole(r));subs=subs.filter(r=>!g8SkipSub(r));src=Object.assign({},src,{n:roles.length,ns:subs.length});G8_ROLES=roles;G8_SUBS=subs;for(const [n] of roles){const f=ROLE_FAM_OF[n];if(!f)ROLE_FAM_OF[n]='vanilla';}G8_RSRC=src;g8RoleSelect();g8RoleShow();}
+function g8RoleShow(){const el=$('role-src');if(!el)return;const x=G8_RSRC;
+  el.textContent='역할 = '+(x.kind==='live'?'✔ 시트 「테이블(싱글)」에서 받음 ('+x.at+' · 역할 '+x.n+' · 부수 '+x.ns+')':x.kind==='cache'?'지난번 시트에서 받은 판 ('+x.at+' · '+x.n+'개)':x.kind==='loading'?'시트에서 받는 중…':'페이지에 넣어 둔 판 ('+x.at+' · '+x.n+'개)')+(x.err?' — 못 받음: '+x.err:'');
+  el.style.color=x.err?'#b45309':x.kind==='live'?'#15803d':'';}
+const G8_RKEY='oremas-maker-roles-v1';
+const G8_TBL_CSV='https://docs.google.com/spreadsheets/d/'+ZOK_SHEET+'/gviz/tq?tqx=out:csv&sheet='+encodeURIComponent('테이블(싱글)')+'&range=AQ2:AT';
+async function g8RolesSync(manual){
+  const prev=G8_RSRC;G8_RSRC=Object.assign({},prev,{kind:'loading',err:''});g8RoleShow();const errs=[];
+  const viaCSV=async()=>{const ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),12000);let r;try{r=await fetch(G8_TBL_CSV+'&_='+Date.now(),{signal:ctl.signal,cache:'no-store'})}finally{clearTimeout(tm)}
+    if(!r.ok)throw new Error('HTTP '+r.status);const t=await r.text();if(/^\s*</.test(t))throw new Error('시트가 공개가 아닌 것 같아요');return zokCSV(t);};
+  const viaMcp=async()=>{const mcp=window.claude&&claude.use?await claude.use('mcp'):null;if(!mcp)return null;
+    try{const r=await mcp.callTool('Google Sheets','get_values',{spreadsheetId:ZOK_SHEET,range:"'테이블(싱글)'!AQ2:AT3000"},{cache:false});const v=r.payload&&r.payload.values;if(!Array.isArray(v))throw new Error('받은 모양이 달라요');return v;}
+    catch(e){throw new Error((e&&ZOK_MCP_MSG[e.code])||((e&&e.code)||'')+' '+((e&&e.message)||e));}};
+  for(const [via,f] of [['공개 주소',viaCSV],['Google Sheets 연결',viaMcp]]){
+    if(via!=='공개 주소'&&!manual&&!(await zokMcpOk()))continue;
+    try{const rows=await f();if(!rows)continue;const {roles,subs}=g8RolesFromRows(rows);if(roles.length<10)throw new Error('역할 줄이 너무 적어요 ('+roles.length+')');
+      const at=new Date().toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
+      try{localStorage.setItem(G8_RKEY,JSON.stringify({at,roles,subs}))}catch(e){}
+      g8UseRoles(roles,subs,{kind:'live',at,n:roles.length,ns:subs.length,via,err:''});return true;}
+    catch(e){errs.push(via+': '+(e&&e.name==='AbortError'?'시간 초과':String((e&&e.message)||e)));}}
+  G8_RSRC=Object.assign({},prev,{err:errs.join(' · ')||'이 화면에서는 시트에 닿을 길이 없어요'});g8RoleShow();return false;}
+// 역할 고르기: 이름을 직접 골랐으면 그 역할 · 아니면 예전 pickRole (선발은 종족치에 맞춰) 또는 묶음 안 다른 역할 — 글은 시트 것
+function g8PickRole(fam,st,nm){
+  if(!nm){if(fam==='vanilla'||!fam)return {role:{name:'바닐라',desc:g8OneLine((g8RoleRow('바닐라')||[,VANILLA_DESC])[1])},sub:null};
+    const old=pickRole(fam,st);nm=old.role.name;const pool=(G8_RAND[fam]||[]).filter(n=>g8RoleRow(n)&&n!==nm);if(pool.length&&Math.random()<0.35)nm=R(pool);}
+  const row=g8RoleRow(nm);const desc=g8OneLine(row?row[1]:(RDB[nm]||[''])[0]);
+  return {role:{name:nm,desc},sub:g8PickSub(nm,fam)};
+}
+const g8Base=n=>n.replace(/\s*:\s*.+$/,'');
+function g8PickSub(nm,fam){
+  if(nm==='바닐라')return null;
+  const tag=x=>new RegExp('『'+x.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'』\\s*전용');
+  let c=G8_SUBS.filter(s=>tag(nm).test(s[2])||(nm!==g8Base(nm)&&tag(g8Base(nm)).test(s[2])));
+  if(!c.length&&fam==='lead')c=G8_SUBS.filter(s=>/모든 선발계/.test(s[2]));
+  if(!c.length){const old=RDB[nm]&&RDB[nm][1];const s=old&&G8_SUBS.find(x=>x[0]===old);if(s)c=[s];}
+  if(!c.length)return null;const s=R(c);return {name:s[0],desc:g8OneLine(s[1])};
+}
+// 메인 기믹 → 이 계제 후보가 기믹 줄인가
+function g8GimHit(c,g){
+  if(!g||!g.kind||!g.val)return false;
+  if(g.kind==='timing')return c.hid===g.val;
+  if(g.kind==='status')return gimmickHit(c.o.s,g)||c.o.s.includes(': '+g.val+'」');
+  return gimmickHit(c.o.s,g);
+}
+function g8GimRes(g,k){return g&&g.kind&&g.val?Math.min(2,Math.max(0,k-1)):0;}   // 기믹 줄 자리 (계제가 3칸이면 기본기 1 + 기믹 2)
+// 메인 기믹 「타이밍 (구문 DB)」 목록 = 생성기 조합 틀의 타이밍·조건 머리 (엔진이 읽는다고 확인된 것)
+const G8_HROLE={pre:'내 행동 전 · 등장',ev:'일이 일어났을 때',end:'턴 끝 · 떠날 때',cond:'조건 (~일 때)'};
+function g8FillTiming(){const s=$('gval');s.innerHTML='';const n={};for(const c of COMBO.C)if(c[0]>=0)n[c[0]]=(n[c[0]]||0)+1;
+  for(const r of ['pre','ev','end','cond']){const og=document.createElement('optgroup');og.label=G8_HROLE[r];
+    COMBO.H.forEach((h,i)=>{if(h[3]!==r||!n[i])return;og.append(new Option(h[1].replace(/\{[A-Z][A-Z0-9]*\}/g,'○')+(h[2]==='t'?' (트레이너)':''),h[0]));});
+    if(og.children.length)s.append(og);}}
+setTimeout(()=>{try{
+  for(const k in G8_FAM_ADD)if(!ROLE_FAM_OF[k])ROLE_FAM_OF[k]=G8_FAM_ADD[k];   // ROLE_FAM_OF 는 이 코드 뒤에서 만들어져서 한 박자 뒤에
+  const gk=$('gkind');if(gk&&![...gk.options].some(o=>o.value==='timing'))gk.append(new Option('타이밍 (구문 DB)','timing'));
+  const old=gk.onchange;gk.onchange=()=>{if(gk.value==='timing'){$('gval').hidden=false;g8FillTiming();}else if(old)old();};
+  let c=null;try{c=JSON.parse(localStorage.getItem(G8_RKEY)||'null')}catch(e){c=null}
+  if(c&&Array.isArray(c.roles)&&c.roles.length>=10)g8UseRoles(c.roles,c.subs||SUBS_BUILT,{kind:'cache',at:c.at,n:c.roles.length,err:''});else{g8RoleSelect();g8RoleShow();}
+  const b=$('zk-sync');if(b)b.addEventListener('click',()=>g8RolesSync(true));
+  g8RolesSync(false);
+}catch(e){console.error('g8 roles',e)}},0);
+
 // ───────── 작은 도우미 ─────────
 const R=a=>a[Math.floor(Math.random()*a.length)];
 const RI=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
@@ -624,6 +731,7 @@ function fitSentence(desc,types,mode,tier){
 }
 function gimmickHit(desc,g){
   if(!g||!g.kind||!g.val)return false;
+  if(g.kind==='timing')return false;
   if(g.kind==='status')return desc.includes('「'+g.val+'」');
   const it=ITEM_BY[g.val]; const d=norm(desc);
   return d.includes('「소지품」')||d.includes(norm(g.val))||(it&&it.kind&&d.includes('「'+norm(it.kind)+'」'));
@@ -940,7 +1048,7 @@ function enforceA(st,fam){
 }
 // 계제 짜기: 역할 기본기 → 열쇠말 하나로 채우기 → 연계로 메우기. 효과 종류는 겹치지 않게, 확률 줄은 하나까지
 function genPlan(types,tier,k,ep,mode,g,st,fam,growth){
-  const out=[]; const usedF=new Set(); const usedN=new Set(); let prob=0, lock=0;
+  const out=[]; const usedF=new Set(); const usedN=new Set(); let prob=0, lock=0; const G8R=g8GimRes(g,k);   // 기믹 줄 자리 (10-20 11:2x)
   const budget=(k+1)*5; let spent=0;   // 계제 포인트: 칸마다 5 (계제 k + 속별 1)
   const pv=d=>potValue(d,growth);
   const fits=d=>{const r=pv(d);if(r.lockBad||r.v>10)return false;const left=k+1-out.length-1;return spent+r.v<=budget-2*left;};
@@ -954,8 +1062,8 @@ function genPlan(types,tier,k,ep,mode,g,st,fam,growth){
   const tw=x=>(x.w||1)*lw(LEARN.line,x.d.replace('@ATK',atkW).replace('@DEF',defW));
   const wpick=a=>{const tot=a.reduce((s,x)=>s+tw(x),0);let r=Math.random()*tot;for(const x of a){r-=tw(x);if(r<=0)return x}return a[0]};
   const tplRow=t=>{const d=t.d.replace('@ATK',atkW).replace('@DEF',defW);return {name:ep+'의 '+t.n,noun:t.n,desc:d,need:[],item:'',src:'(직무 틀)',fam:t.f==='link'?'link':famOf(d),key:keyOf(d)}};
-  if(Object.keys(groups).length){for(const gk of Object.keys(groups)){if(out.length>=k)break;const c=groups[gk].filter(t=>canTake(t.d,t.f==='link'?'link':famOf(t.d)));if(c.length)take(tplRow(gk==='ln'&&Math.random()<0.75?(c.find(x=>x.n==='재생')||wpick(c)):wpick(c)));}}
-  else if(tpl.length){const n=fam==='ace'?Math.max(1,k-1):Math.min(k-1,1+Math.floor(Math.random()*2));for(const t of shuffle(tpl)){if(out.filter(x=>x.src==='(직무 틀)').length>=n)break;if(canTake(t.d,famOf(t.d)))take(tplRow(t));}}
+  if(Object.keys(groups).length){for(const gk of Object.keys(groups)){if(out.length>=k-G8R)break;const c=groups[gk].filter(t=>canTake(t.d,t.f==='link'?'link':famOf(t.d)));if(c.length)take(tplRow(gk==='ln'&&Math.random()<0.75?(c.find(x=>x.n==='재생')||wpick(c)):wpick(c)));}}
+  else if(tpl.length){const n=Math.max(0,Math.min(k-G8R,fam==='ace'?Math.max(1,k-1):Math.min(k-1,1+Math.floor(Math.random()*2))));for(const t of shuffle(tpl)){if(out.filter(x=>x.src==='(직무 틀)').length>=n)break;if(canTake(t.d,famOf(t.d)))take(tplRow(t));}}
   // ② 후보 문장
   let cands=g8Cands(types,tier,mode,g,st);   // G8: 구문 DB 조합 문장 (원작 문장 풀 안 씀)
   cands=shuffle(cands);
@@ -963,6 +1071,7 @@ function genPlan(types,tier,k,ep,mode,g,st,fam,growth){
   let K=ROLE_KEY[fam]||'';
   if(fam==='rot'){const ks=['hit','protect','uturn','enter'].filter(x=>cands.some(c=>c.key===x));K=ks.length?R(ks):'none';}
   if(!K&&g&&g.kind==='status'&&g.val&&cands.some(c=>c.key==='st:'+g.val))K='st:'+g.val;
+  if(!K&&g&&g.kind==='timing'&&g.val){const gc=cands.find(c=>c.hid===g.val&&!['none','cond','scan'].includes(c.key));if(gc)K=gc.key;}
   if(K==='none')K='';
   else if(!K){const cnt={};for(const c of cands)if(!['none','cond','scan'].includes(c.key))cnt[c.key]=(cnt[c.key]||0)+1;
     const kwt=(kk,n)=>Math.sqrt(n)*lw(LEARN.keys[fam||'vanilla'],kk)*lw(LEARN.keyScore,(fam||'wild')+'|'+kk);
@@ -970,6 +1079,10 @@ function genPlan(types,tier,k,ep,mode,g,st,fam,growth){
   const P=profileOf(types,st,g);
   const addFrom=list=>{for(const c of list){if(out.length>=k)break;if(usedN.has(c.noun))continue;if(!canTake(c.o.s,c.fam))continue;
     take({name:ep+'의 '+c.noun,noun:c.noun,desc:c.o.s,need:c.fit.need.slice(),item:c.fit.item,src:c.o.n,fam:c.fam,key:c.key});}};
+  // G8 (10-20 11:2x 사용자 「기믹 줄 최소 2줄 보장」): 메인 기믹이 들어간 줄을 먼저 둘까지 (역할 기본기는 그만큼 비켜 둠)
+  if(G8R){let got=0;const gsc=c=>synergy(c.o,out,P,g)-0.7*Math.abs(pv(c.o.s).v-5)+Math.random();
+    for(const c of cands.filter(c=>g8GimHit(c,g)).sort((a,b)=>gsc(b)-gsc(a))){if(got>=G8R||out.length>=k)break;if(usedN.has(c.noun)||!canTake(c.o.s,c.fam))continue;
+      take({name:ep+'의 '+c.noun,noun:c.noun,desc:c.o.s,need:c.fit.need.slice(),item:c.fit.item,src:c.o.n,fam:c.fam,key:c.key,g8gim:true});got++;}}
   // 킬러: 1인분(위력·뚫기·급소)을 열쇠 없이도 하나
   if(fam==='killer')addFrom(cands.filter(c=>['power','pierce','crit'].includes(c.fam)&&['none','first','ko'].includes(c.key)));
   const tgt=()=>Math.min(8,Math.max(2,(budget-spent)/Math.max(1,k+1-out.length)));   // 남은 포인트를 남은 칸에 고르게
@@ -984,7 +1097,7 @@ function genPlan(types,tier,k,ep,mode,g,st,fam,growth){
   }
   // ④-2 강약 맞추기: 포인트를 너무 적게 썼으면 (65% 미만) 가장 약한 일반 줄을 더 센 줄로 바꿈 — 직무 틀은 그대로
   for(let it=0;it<3&&spent<budget*0.65;it++){
-    const weak=out.filter(r=>r.src!=='(직무 틀)').sort((a,b)=>a.pt-b.pt)[0]; if(!weak)break;
+    const weak=out.filter(r=>r.src!=='(직무 틀)'&&!r.g8gim).sort((a,b)=>a.pt-b.pt)[0]; if(!weak)break;
     const room=Math.round(budget*0.85)-spent+weak.pt;
     const otherF=new Set(out.filter(r=>r!==weak).map(r=>r.fam));
     const alt=cands.filter(c=>!usedN.has(c.noun)&&!(c.fam!=='other'&&otherF.has(c.fam))&&!pv(c.o.s).lockBad&&pv(c.o.s).v>weak.pt&&pv(c.o.s).v<=Math.min(10,room)&&!(PROB.test(c.o.s)&&prob>=probMax&&!PROB.test(weak.desc)))
@@ -1031,7 +1144,7 @@ function build(){
   const f=readForm(); const types=pickTypes(f.h,f.m,f.t1,f.t2);
   const ep=f.ep0||genEp(f.p,types,f.m); const name=f.name0||genName(f.h,f.m);
   let k=f.wild?TIER[f.tier].kj+(f.boss&&f.tier<4?1:0):(f.grow==='A'?4:3);
-  const fam=f.wild?'':(f.role||pickRoleFamLearned());
+  const g8nm=(f.role||'').startsWith('r:')?f.role.slice(2):''; const fam=f.wild?'':(g8nm?(ROLE_FAM_OF[g8nm]||'vanilla'):(f.role||pickRoleFamLearned()));
   const st=f.wild?enforceA(genStats(types,f.tier,f.boss),''):genStatsRole(types,f.tier,f.boss,fam);
   const plan=genPlan(types,f.tier,Math.max(1,k),ep,f.mode,f.g,st,fam,!f.wild&&f.grow==='A'); const kj=plan.rows;
   const need=kj.flatMap(x=>x.need);
@@ -1042,7 +1155,7 @@ function build(){
     pots.push({code:1,name:'현대종',desc:'최근에 발견된 새로운 종.'});
     if(f.boss){const MT={'정원':['노말'],'화산':['불꽃'],'섬':['물'],'숲':['풀','벌레'],'설산':['얼음'],'늪':['독'],'도로':['땅'],'고지':['비행'],'유적':['에스퍼'],'산':['바위'],'묘지':['고스트'],'저택':types.map(t=>TK[t])};
       const place=HAB[f.h][1]; pots.push({code:2,name:place+'의 주인',desc:'상대의 '+MT[place].map(x=>'「'+x+'」').join('')+' 기술의 위력을 반감한다.'});}
-  } else { const rr=pickRole(fam,st); pots.push({code:0,name:rr.role.name,desc:rr.role.desc}); pots.push({code:1,name:'현대종',desc:'최근에 발견된 새로운 종.'}); if(rr.sub)M_SUB=rr.sub; else M_SUB=null; }
+  } else { const rr=g8PickRole(fam,st,g8nm); pots.push({code:0,name:rr.role.name,desc:rr.role.desc}); pots.push({code:1,name:'현대종',desc:'최근에 발견된 새로운 종.'}); if(rr.sub)M_SUB=rr.sub; else M_SUB=null; }
   // 10-16 15:21 사용자: 계제 = 종족 칸만 (속별은 계제 아님). 육성 A 이상 4계제 / 그 아래 3계제
   for(const x of kj)pots.push({code:4,name:x.name,desc:x.desc,need:x.need,src:x.src});
   if(!f.wild){const z=g8Zok(types,st,mv,kj,f.m,'',Math.max(1,plan.budget-plan.spent),f.grow==='A');if(z){pots.push({code:5,name:z.name,desc:z.desc,src:z.src||'(속별 틀)'});if(z.move&&!mv.includes(z.move))mv.push(z.move)}}
