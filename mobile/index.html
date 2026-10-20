@@ -246,7 +246,13 @@ button.b.big { font-size: 19px; padding: 16px 14px; border-radius: 12px; width: 
 .nowbar .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; color: var(--sub); }
 .nowbar .nm b { color: var(--fg); }
 #view-mon.fresh > details, #view-mon.fresh > .nowbar { display: none; }
-#view-mon:not(.fresh) > .hero { display: none; }
+#view-mon:not(.fresh) > .hero, #view-mon:not(.fresh) > .sheetcard { display: none; }
+.sheetcard { border: 1px solid var(--neon); border-radius: 14px; padding: 14px 16px; margin: 0 0 12px; display: grid; gap: 10px; grid-template-columns: minmax(0, 1fr); background: var(--panel); }
+.sheetcard .sh-h { font-weight: 700; color: var(--neon); font-size: 15px; }
+.sheetcard .sh-st { display: grid; gap: 4px; font-size: 13.5px; color: var(--sub); }
+.sheetcard .sh-st b { color: var(--fg); }
+.sheetcard button.b { width: 100%; font-size: 16px; padding: 12px 14px; border-radius: 10px; }
+.sheetcard .sh-n { font-size: 12.5px; color: var(--sub); }
 .dock.fresh { display: none; }
 @media (max-width: 380px) { .g3 { grid-template-columns: repeat(2, 1fr); } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
@@ -273,6 +279,13 @@ button.b.big { font-size: 19px; padding: 16px 14px; border-radius: 12px; width: 
         <li><span>아래 <b>[줄 복사]</b> → 게임 포켓몬 편집의 <b>[붙여넣기]</b></span></li>
       </ol>
       <button class="b ghost" id="m-start-paste">이미 만든 줄이 있어요 → 줄 읽어 오기</button>
+    </div>
+    <!-- 첫 화면 시트 판 (사용자 10-20 11:00 「첫 화면에서도 시트에서 다시 받기 버튼이 눈에 띄게」) -->
+    <div class="sheetcard" id="m-sheetcard">
+      <div class="sh-h">구글 시트 동조</div>
+      <div class="sh-st"><span id="h-tbl-src"></span><span id="h-phr-src"></span></div>
+      <button class="b pri" id="h-tbl-sync">↻ 시트에서 다시 받기</button>
+      <div class="sh-n">페이지를 열 때마다 알아서 받아요. 페이지를 켜 둔 채 시트를 고쳤으면 눌러 주세요.</div>
     </div>
     <div class="nowbar"><span class="nm" id="m-now"></span><button class="b gold" id="m-new2">＋ 새 포켓몬</button></div>
     <details class="box" id="m-in">
@@ -1276,7 +1289,13 @@ function tblSrcText() {
   if (x.kind === "loading") return "구글 시트에서 받는 중…";
   return "페이지에 넣어 둔 판 (4.xlsx 10-19 20:15 + 속별 글 20:26)";
 }
+function shortSrc(x, what) {
+  const st = x.kind === "live" ? `<span class="okc">✔ 시트에서 받음</span> · ${esc(x.at)} · <span style="white-space:nowrap">${x.n}줄</span>` : x.kind === "loading" ? "받는 중…" : x.kind === "cache" ? `지난번 받은 판 · ${esc(x.at)} · <span style="white-space:nowrap">${x.n}줄</span>` : "페이지에 넣어 둔 판";
+  return `<span><b>${what}</b> ${st}${x.err && x.kind !== "live" ? ` <span class="warn">(못 받음)</span>` : ""}</span>`;
+}
+function setSyncBusy() { const busy = TBL_SRC.kind === "loading" || PHR_SRC.kind === "loading"; for (const id of ["m-tbl-sync", "h-tbl-sync"]) { const b = $(id); if (b) b.disabled = busy; } }
 function showTblSrc() {
+  if ($("h-tbl-src")) $("h-tbl-src").innerHTML = shortSrc(TBL_SRC, "칸 목록"); try { setSyncBusy(); } catch (e) {}
   const x = TBL_SRC, err = x.err ? `<br><span class="warn">시트를 못 받았어요: ${esc(x.err)}</span>` : "";
   $("m-tbl-src").innerHTML = "칸 목록 = " + (x.kind === "live" ? `<span class="okc">${tblSrcText()}</span>` : tblSrcText()) + err;
 }
@@ -1291,7 +1310,6 @@ function loadTableCache() {
 }
 async function syncSheet(manual) {
   const prev = TBL_SRC; TBL_SRC = Object.assign({}, prev, { kind: "loading", err: "" }); showTblSrc();
-  $("m-tbl-sync").disabled = true;
   try {
     const ctl = new AbortController(), tm = setTimeout(() => ctl.abort(), 12000);
     let r; try { r = await fetch(SHEET_CSV + "&_=" + Date.now(), { signal: ctl.signal, cache: "no-store" }); } finally { clearTimeout(tm); }
@@ -1308,9 +1326,10 @@ async function syncSheet(manual) {
     const msg = e && e.name === "AbortError" ? "시간 초과" : String((e && e.message) || e);
     TBL_SRC = Object.assign({}, prev, { err: msg + (/fetch|Load failed|NetworkError/i.test(msg) ? " — 이 화면(claude.ai 미리보기 등)에서는 바깥 주소를 못 부를 수 있어요. GitHub 판 주소로 열면 동조돼요" : "") });
     showTblSrc(); if (manual) toast("시트를 못 받았어요 — 지금 목록을 그대로 써요");
-  } finally { $("m-tbl-sync").disabled = false; }
+  } finally { setSyncBusy(); }
 }
 $("m-tbl-sync").addEventListener("click", () => { syncSheet(true); syncPhrases(true); });
+$("h-tbl-sync").addEventListener("click", () => { syncSheet(true); syncPhrases(true); });
 // ───────── 구문 DB = 구글 시트 「구문 DB」 탭 동조 (사용자 10-20 03:11 「여기서 구문 DB 업데이트 했어」) ─────────
 // 탭 칸 = 구문DB 3판 xlsx 와 같음: ID · 분류 · 묶음 · 종류 · 꼴 · 빈칸 · 예시 문장 · 메모 · 배틀이 읽나 · 출처 · 넣은 날 · 이번에 고친 것
 const PHR_TAB = "구문 DB", PHR_KEY = "oremas-mobile-phr-v1";
@@ -1338,6 +1357,7 @@ function usePhrases(list, src) {
   if (!$("mac").hidden) renderMacList();
 }
 function showPhrSrc() {
+  $("h-phr-src").innerHTML = shortSrc(PHR_SRC, "짜기 구문"); setSyncBusy();
   const x = PHR_SRC, txt = x.kind === "live" ? `<span class="okc">구글 시트 「구문 DB」에서 받음 (${esc(x.at)} · ${x.n}줄)</span>` : x.kind === "cache" ? `지난번 시트에서 받은 판 (${esc(x.at)} · ${x.n}줄)` : x.kind === "loading" ? "구글 시트에서 받는 중…" : `페이지에 넣어 둔 판 (게임 구문 DB 3판 · ${x.n}줄)`;
   $("m-phr-src").innerHTML = "짜기 구문 = " + txt + (x.err ? `<br><span class="warn">구문 시트를 못 받았어요: ${esc(x.err)}</span>` : "");
 }
