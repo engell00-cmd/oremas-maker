@@ -411,7 +411,7 @@ button.b.big { font-size: 19px; padding: 16px 14px; border-radius: 12px; width: 
 
 <div class="dock" id="dock"><div class="in">
   <button class="b" id="dock-in">줄 읽어 오기</button>
-  <button class="b gold" id="dock-copy">줄 복사</button>
+  <button class="b gold" id="dock-copy">게임에 넣기 (줄 복사)</button>
 </div></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <datalist id="dl-egg"></datalist>
@@ -868,9 +868,10 @@ function save() { clearTimeout(saveT); saveT = setTimeout(() => { try { localSto
 
 function toast(t) { const el = $("toast"); el.textContent = t; el.classList.add("show"); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove("show"), 1800); }
 async function copyText(text, area) {
-  try { await navigator.clipboard.writeText(text); toast("줄을 복사했어요"); return; } catch (e) {}
+  const okMsg = "줄을 복사했어요 — 휴대폰 게임으로 돌아가면 [넣기]가 떠요";   // 235단계: 게임(휴대폰)이 복사한 줄을 알아채고 [넣기]
+  try { await navigator.clipboard.writeText(text); toast(okMsg); return; } catch (e) {}
   area.focus(); area.select(); area.setSelectionRange(0, text.length);
-  try { if (document.execCommand("copy")) { toast("줄을 복사했어요"); return; } } catch (e) {}
+  try { if (document.execCommand("copy")) { toast(okMsg); return; } } catch (e) {}
   toast("복사가 막혔어요 — 선택된 글을 길게 눌러 복사해 주세요");
 }
 
@@ -1936,10 +1937,48 @@ $("mac-x").addEventListener("click", closeMacro);
 $("mac-cancel").addEventListener("click", closeMacro);
 document.addEventListener("keydown", (e) => { if (e.key !== "Escape") return; if (!$("help").hidden) closeHelp(); else if (!$("pick").hidden) closePick(); else if (!$("sans").hidden) closeSans(); else if (!$("mac").hidden) closeMacro(); });
 
+// ───────── 235단계: 게임 [웹에서 편집] → 주소 #m=…&t=… (base64url UTF-8 붙여넣기 줄) 로 받아 바로 열기 ─────────
+function b64uDecode(s) {
+  s = String(s || "").replace(/-/g, "+").replace(/_/g, "/"); while (s.length % 4) s += "=";
+  const bin = atob(s); return new TextDecoder("utf-8").decode(Uint8Array.from(bin, (c) => c.charCodeAt(0)));
+}
+function fromGame() {
+  const h = String(location.hash || "").replace(/^#/, ""); if (!h) return;
+  const ps = new URLSearchParams(h); let m = "", t = "";
+  try { m = ps.get("m") ? b64uDecode(ps.get("m")) : ""; t = ps.get("t") ? b64uDecode(ps.get("t")) : ""; } catch (e) { toast("게임에서 보낸 내용을 못 읽었어요"); return; }
+  if (!m && !t) return;
+  try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {}
+  let trName = "";
+  if (t) {   // 트레이너 = 같은 이름은 바꾸고, 없으면 덧붙임 (다른 트레이너는 그대로)
+    const ts = parseTrainers(t);
+    for (const x of ts) {
+      const i = S.tr.findIndex((y) => y.name === x.name), old = i >= 0 ? S.tr[i] : null;
+      const nt = { name: x.name, q: Object.assign({ 지시: "C", 육성: "C", 통솔: "C", 능력: "C" }, x.q), uniq: x.uniq, pt: old ? old.pt : undefined };
+      if (i >= 0) S.tr[i] = nt; else S.tr.push(nt);
+      trName = trName || x.name;
+    }
+    S.trFrom = "게임에서 받음: " + ts.map((x) => x.name).join(", ");
+    renderTr();
+  }
+  if (m) {
+    const r = parseMon(m.split("\n")[0].trim());
+    if (!r.ok) { toast("게임에서 보낸 포켓몬을 못 읽었어요: " + r.error); return; }
+    S.mon = r.data; S.monFrom = "게임에서 받음: 「" + r.data.name + "」"; S.monStarted = true;
+    if (trName) S.monTr = trName;
+    save(); setTab("mon"); renderMon();
+    toast("게임에서 「" + r.data.name + "」을 받아 왔어요 — 고친 뒤 [게임에 넣기]");
+  } else if (trName) {
+    save(); setTab("tr");
+    const c = [...$("t-list").children].find((el) => el.textContent.includes(trName)); if (c) c.scrollIntoView({ block: "start" });
+    toast("게임에서 트레이너 「" + trName + "」을 받아 왔어요 — 고친 뒤 [게임에 넣기]");
+  }
+}
+
 // ───────── 시작 ─────────
 $("ver").textContent = `기술 ${D.moves.length.toLocaleString()} · 특성 ${D.abil.length} · 소지품 ${D.items.length} · 구문 ${D.phrases.filter((p) => p.kind !== "rule").length}`;
 loadTableCache(); loadPhrCache();
 renderMon(); renderTr(); setTab(S.tab === "tr" ? "tr" : "mon");
+fromGame(); window.addEventListener("hashchange", fromGame);
 syncSheet(false); syncPhrases(false);
 window.__oremas = { parseMon, buildMon, parseTrainers, buildTrainer, qualityType, lint, sortTags, addTag, defaultsFrom, fillForm, compose, slotToks, phrasesFromRows, parseCSV, tableFromRows, autoExpGrant, sansikFill, sansikParse, SANS_TB, get TB() { return TB; }, monQ, expOk, tacOk, breedAA, privOk, potRuleWarns };
 </script>
