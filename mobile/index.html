@@ -567,6 +567,7 @@ function listOf(parts, i) {
   return out;
 }
 // 붙여넣기 한 줄 → 포켓몬 (MonsterPaste.parse 와 같은 순서 · 같은 경고)
+const TAC_NAMES = () => new Set((TB["전술"] || []).map((x) => String(x.name).trim()));
 function parseMon(text) {
   text = String(text).trim();
   const parts = text.split("#");
@@ -591,10 +592,12 @@ function parseMon(text) {
     if (pn === "" && pd === "") continue;
     const code = i < codes.length ? toInt(codes[i], 999) : 999;
     if (!(code in CODE_SLOTS)) { warns.push(`포텐셜 『${pn}』의 칸 번호 ${i < codes.length ? codes[i] : "(없음)"} 를 몰라서 넣지 않았어요`); continue; }
-    const n = used[code] || 0, sl = CODE_SLOTS[code];
-    if (n >= sl.length) { warns.push(`포텐셜 『${pn}』: 【${SLOTS[sl[0]]}】 칸이 이미 다 찼어요`); continue; }
-    used[code] = n + 1;
-    m.pots[sl[n]] = { name: pn, desc: pd.replaceAll("<br>", "\n") };
+    // #63 (게임과 같게): 칸 번호 15 = PT·PT·전술 세 칸이 같이 씀 → 전술 이름이면 【전술】 칸부터, 아니면 PT 칸부터 (예전 줄도 그대로 읽힘)
+    const sl = code === 15 && TAC_NAMES().has(pn) ? [19, 17, 18] : CODE_SLOTS[code];
+    const u = used[code] || (used[code] = new Set()), at2 = sl.find((x) => !u.has(x));
+    if (at2 == null) { warns.push(`포텐셜 『${pn}』: 【${SLOTS[sl[0]]}】 칸이 이미 다 찼어요`); continue; }
+    u.add(at2);
+    m.pots[at2] = { name: pn, desc: pd.replaceAll("<br>", "\n") };
   }
   m.sig = { name: parts.length > 4 ? clean(parts[4]) : "", desc: parts.length > 5 ? clean(parts[5]).replaceAll("<br>", "\n") : "" };
   const mt = parts.length > 6 ? parts[6].trim() : "";
