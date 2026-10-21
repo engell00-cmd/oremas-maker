@@ -185,6 +185,21 @@ select.ddsel option:disabled { color: #7b86b0; }
 .tr-card { border: 1px solid var(--line); border-radius: var(--r); background: var(--panel); padding: 12px; display: grid; gap: 10px; }
 .tr-card .tt { display: flex; gap: 8px; align-items: center; }
 .qtype { color: var(--gold); font-size: 13px; font-weight: 600; }
+/* 카드 접기 (사용자 10-21 10:28 「트레이너랑 포켓몬을 접어 놓을 수 있게」) */
+details.tr-card { display: block; padding: 0; }
+details.tr-card > summary { list-style: none; cursor: pointer; padding: 12px; display: flex; gap: 8px; align-items: center; min-width: 0; }
+details.tr-card > summary::-webkit-details-marker, details.fcard > summary::-webkit-details-marker { display: none; }
+details.tr-card > summary::after, details.fcard > summary::after { content: "▾"; margin-left: auto; color: var(--sub); transition: transform .15s; flex: none; }
+details.tr-card[open] > summary::after, details.fcard[open] > summary::after { transform: rotate(180deg); }
+details.tr-card > summary .trn { font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+details.tr-card > summary .trq { color: var(--gold); font-size: 13px; font-weight: 600; white-space: nowrap; }
+details.tr-card > summary .hint { color: var(--sub); font-size: 12.5px; white-space: nowrap; }
+details.tr-card[open] > summary { border-bottom: 1px solid var(--line); }
+details.tr-card > .trb { display: grid; gap: 10px; padding: 12px; grid-template-columns: minmax(0, 1fr); }
+details.fcard { display: block; padding: 0; }
+details.fcard > summary.fh { list-style: none; cursor: pointer; padding: 10px; }
+details.fcard > .fb { display: grid; gap: 8px; padding: 0 10px 10px; grid-template-columns: minmax(0, 1fr); }
+.nowbar .fold { flex: none; }
 .uq { border-top: 1px dashed var(--line); padding-top: 10px; display: grid; gap: 6px; }
 summary, .prow, .tr-card, input, textarea, select, #mac-q { scroll-margin-top: 130px; scroll-margin-bottom: 100px; }
 .sheet summary, .sheet .prow, .sheet input, .sheet textarea, .sheet select, .sheet #mac-q { scroll-margin-top: 12px; scroll-margin-bottom: 12px; }
@@ -295,7 +310,7 @@ button.b.big { font-size: 19px; padding: 16px 14px; border-radius: 12px; width: 
       <button class="b pri" id="h-tbl-sync">↻ 시트에서 다시 받기</button>
       <div class="sh-n">페이지를 열 때마다 알아서 받아요. 페이지를 켜 둔 채 시트를 고쳤으면 눌러 주세요.</div>
     </div>
-    <div class="nowbar"><button class="b sm ghost home" id="m-home">← 처음</button><span class="nm" id="m-now"></span><button class="b gold" id="m-new2">＋ 새 포켓몬</button></div>
+    <div class="nowbar"><button class="b sm ghost home" id="m-home">← 처음</button><span class="nm" id="m-now"></span><button class="b sm fold" id="m-fold">모두 접기</button><button class="b gold" id="m-new2">＋ 새 포켓몬</button></div>
     <details class="box" id="m-in">
       <summary><h2 class="sec">줄 읽어 오기</h2><span class="hint">게임·시트·생성기의 붙여넣기 한 줄</span></summary>
       <div class="inner">
@@ -404,7 +419,7 @@ button.b.big { font-size: 19px; padding: 16px 14px; border-radius: 12px; width: 
         <div class="msg" id="t-in-msg"></div>
       </div>
     </details>
-    <div class="nowbar" id="t-nowbar" hidden><button class="b sm ghost home" id="t-home">← 처음</button><span class="nm" id="t-now"></span></div>
+    <div class="nowbar" id="t-nowbar" hidden><button class="b sm ghost home" id="t-home">← 처음</button><span class="nm" id="t-now"></span><button class="b sm fold" id="t-fold">모두 접기</button></div>
     <div id="t-list" style="display:grid;gap:10px"></div>
     <div class="row" style="margin:10px 0"><button class="b" id="t-add">＋ 트레이너</button></div>
     <details class="box" open id="t-out">
@@ -978,8 +993,9 @@ function renderForms() {
   const m = S.mon, old = isOldType(m);
   $("m-form-list").innerHTML = (m.forms || []).map((f, fi) => {
     fixCount = 0; const line = formLine(f, m.level), ab = ABIL.get(String(f.ability).trim());
-    return `<div class="fcard" data-fi="${fi}">
-      <div class="fh"><span class="kchip${megaKind(f.kind) ? "" : " f"}">${esc(f.kind)}</span><b style="flex:1;min-width:0">${esc(f.name || "(이름 없음)")}</b>${tyChips(f.types.filter(Boolean).join("/"))}</div>
+    return `<details class="fcard" data-fi="${fi}"${f.open === false ? "" : " open"}>
+      <summary class="fh"><span class="kchip${megaKind(f.kind) ? "" : " f"}">${esc(f.kind)}</span><b style="flex:1;min-width:0">${esc(f.name || "(이름 없음)")}</b>${tyChips(f.types.filter(Boolean).join("/"))}</summary>
+      <div class="fb">
       ${megaKind(f.kind) && !old ? '<div class="err">올드 타입이 아니라 이 폼은 게임에서 쓸 수 없어요</div>' : ""}
       <div class="g2"><label class="f">폼 이름<input data-f="name" value="${esc(f.name)}" autocomplete="off"></label>
         <label class="f">종류<select data-f="kind">${FORM_KINDS.map((k) => `<option${k === f.kind ? " selected" : ""}${megaKind(k) && !old && k !== f.kind ? " disabled" : ""}>${k}</option>`).join("")}</select></label></div>
@@ -989,10 +1005,15 @@ function renderForms() {
       <div class="g3">${STAT_ORDER.map((k) => `<label class="f">${STAT_KO[k]}<input data-f="stats.${k}" type="number" inputmode="numeric" value="${esc(f.stats[k])}"></label>`).join("")}</div>
       <textarea class="mono" rows="2" readonly aria-label="${esc(f.name)} 폼 줄">${esc(line)}</textarea>
       <div class="row"><button class="b gold sm" data-fcopy="${fi}">폼 줄 복사</button><span class="note" style="flex:1">게임에서 종류 「${esc(f.kind)}」를 고르세요</span><button class="b sm ghost" data-fdel="${fi}">이 폼 빼기</button></div>
-    </div>`;
+      </div>
+    </details>`;
   }).join("") || '<div class="note">폼이 없어요.</div>';
   refreshFormsHead(); save();
 }
+$("m-form-list").addEventListener("toggle", (e) => {
+  const d = e.target; if (!d.classList || !d.classList.contains("fcard")) return;
+  const f = S.mon.forms[+d.dataset.fi]; if (f) { f.open = d.open; save(); } monFoldLabel();
+}, true);
 $("m-form-list").addEventListener("input", (e) => {
   const el = e.target, card = el.closest(".fcard"); if (!card || !el.dataset.f) return;
   const f = S.mon.forms[+card.dataset.fi]; let v = el.value; if (el.type === "number") v = el.value === "" ? "" : Number(el.value);
@@ -1130,7 +1151,7 @@ function refreshFresh() {
   $("m-resume").innerHTML = "이어서 고치기 — " + (S.mon.name.trim() ? "『" + esc(S.mon.name) + "』" : "이름 없는 포켓몬");
   $("view-mon").classList.toggle("fresh", fresh);
   $("dock").classList.toggle("fresh", fresh && S.tab === "mon");
-  $("m-now").innerHTML = S.mon.name.trim() ? `지금 만드는 포켓몬 <b>『${esc(S.mon.name)}』</b>` : "새 포켓몬 (이름 없음)";
+  $("m-now").innerHTML = S.mon.name.trim() ? `<b>『${esc(S.mon.name)}』</b>` : "(이름 없음)";   // 막대에 [모두 접기]가 들어가서 이름만
 }
 function startNew() {
   S.mon = applyMonDefaults(blankMon()); S.monFrom = "새 포켓몬"; S.monStarted = true; S.monHome = false; S.mon.forms = [];
@@ -1150,6 +1171,16 @@ $("m-start-new").addEventListener("click", () => {
   setTimeout(() => { if (Date.now() >= heroArm) b.textContent = "＋ 새 포켓몬 만들기"; }, 3100);
 });
 $("m-resume").addEventListener("click", () => { S.monHome = false; S.monStarted = true; refreshFresh(); save(); window.scrollTo(0, 0); autosizeAll(); });
+const monFoldEls = () => [...document.querySelectorAll("#view-mon > details.box:not(#m-in):not(#m-out), #m-pot-list details.slot, #m-form-list details.fcard")];
+function monFoldLabel() { $("m-fold").textContent = monFoldEls().some((d) => d.open) ? "모두 접기" : "모두 펴기"; }
+document.addEventListener("toggle", (e) => { if (e.target.tagName === "DETAILS" && e.target.closest && e.target.closest("#view-mon")) monFoldLabel(); }, true);
+$("m-fold").addEventListener("click", () => {
+  const open = !monFoldEls().some((d) => d.open);
+  for (const d of monFoldEls()) d.open = open;
+  (S.mon.forms || []).forEach((f) => { f.open = open; });
+  if (open) autosizeAll(); save(); monFoldLabel();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+});
 $("m-home").addEventListener("click", () => { S.monHome = true; refreshFresh(); save(); window.scrollTo({ top: 0, behavior: "smooth" }); });
 $("m-start-paste").addEventListener("click", () => { S.monStarted = true; S.monHome = false; refreshFresh(); $("m-in").open = true; $("m-in").scrollIntoView({ behavior: "smooth", block: "start" }); setTimeout(() => $("m-in-text").focus(), 300); });
 // 고치던 포켓몬이 있으면 두 번 눌러야 비움 (실수 방지)
@@ -1485,9 +1516,14 @@ $("m-move-list").addEventListener("click", (e) => {
 
 // ───────── 트레이너 화면 ─────────
 const gradeOpts = (cur) => GRADES.map((g) => `<option${g === cur ? " selected" : ""}>${g}</option>`).join("");
+const trGrades = (q) => QUALITIES.map((k) => k[0] + (q[k] || "C")).join(" ");
+// 모두 접기 / 펴기 — 하나라도 펴져 있으면 [모두 접기]
+function trFoldLabel() { $("t-fold").textContent = S.tr.some((t) => t.open !== false) ? "모두 접기" : "모두 펴기"; }
 function renderTr() {
   $("t-list").innerHTML = S.tr.length ? S.tr.map((t, ti) => `
-    <div class="tr-card" data-ti="${ti}">
+    <details class="tr-card" data-ti="${ti}"${t.open === false ? "" : " open"}>
+      <summary><b class="trn">${esc(t.name.trim() || "이름 없음")}</b><span class="trq">${esc(trGrades(t.q))}</span><span class="hint trh">고유 ${t.uniq.filter((u) => String(u.name).trim()).length}</span></summary>
+      <div class="trb">
       <div class="tt"><label class="f" style="flex:1">이름<input data-tk="name" value="${esc(t.name)}" autocomplete="off"></label><button class="b sm ghost" data-trdel="${ti}" style="align-self:end">이 트레이너 빼기</button></div>
       <div class="g2" style="grid-template-columns:repeat(4,1fr)">${QUALITIES.map((q) => `<label class="f">${q}<select data-tq="${q}">${gradeOpts(t.q[q] || "C")}</select></label>`).join("")}</div>
       <div class="qtype" data-qt>${esc(qualityType(t.q))}</div>
@@ -1501,13 +1537,14 @@ function renderTr() {
         <div class="row"><button class="b sm" data-umac="${ui}">짜기</button><button class="b sm ghost" data-udel="${ui}">이 고유 빼기</button></div>
       </div>`).join("")}
       <div class="row"><button class="b sm" data-uadd>＋ 고유</button></div>
-    </div>`).join("") : "";
+      </div>
+    </details>`).join("") : "";
   const home = !!S.trHome || !S.tr.length;
   if (home) $("t-list").innerHTML = '<div class="hero"><h2>트레이너 만들기</h2><p>자질(지시·육성·통솔·능력)과 고유 포텐셜을 정해서 게임에 붙여넣어요.</p><button class="b gold big" data-tstart>＋ 새 트레이너 만들기</button>'
     + (S.tr.length ? `<button class="b pri resume" data-tresume>이어서 고치기 — ${S.tr.length}명 (${esc(S.tr.map((t) => t.name.trim() || "이름 없음").join(", "))})</button>` : "")
     + '<p>이미 만든 줄이 있으면 위 [줄 읽어 오기]</p></div>';
   $("t-nowbar").hidden = home; $("t-now").innerHTML = `트레이너 <b>${S.tr.length}명</b>`;
-  $("t-add").parentElement.hidden = home; $("t-out").hidden = home;
+  $("t-add").parentElement.hidden = home; $("t-out").hidden = home; trFoldLabel();
   updateTrOut(); autosizeAll();
 }
 function updateTrOut() {
@@ -1526,10 +1563,11 @@ function updateTrOut() {
 $("t-list").addEventListener("input", (e) => {
   const card = e.target.closest(".tr-card"); if (!card) return;
   const t = S.tr[+card.dataset.ti], el = e.target;
-  if (el.dataset.tk) { if (S.monTr && S.monTr === t.name) S.monTr = el.value; t.name = el.value; }
+  if (el.dataset.tk) { if (S.monTr && S.monTr === t.name) S.monTr = el.value; t.name = el.value; card.querySelector(".trn").textContent = t.name.trim() || "이름 없음"; }
   if (el.dataset.tpt) { const [k, f] = el.dataset.tpt.split("."); t.pt = t.pt || [{ name: "", desc: "" }, { name: "", desc: "" }]; t.pt[+k][f] = el.value; save(); }
-  if (el.dataset.tq) { t.q[el.dataset.tq] = el.value; card.querySelector("[data-qt]").textContent = qualityType(t.q); }
+  if (el.dataset.tq) { t.q[el.dataset.tq] = el.value; card.querySelector("[data-qt]").textContent = qualityType(t.q); card.querySelector(".trq").textContent = trGrades(t.q); }
   if (el.dataset.uk) { const [ui, f] = el.dataset.uk.split("."); t.uniq[+ui][f] = el.value; }
+  if (el.dataset.uk) card.querySelector(".trh").textContent = "고유 " + t.uniq.filter((u) => String(u.name).trim()).length;
   updateTrOut();
 });
 $("t-list").addEventListener("change", (e) => { if (e.target.tagName === "SELECT") e.target.dispatchEvent(new Event("input", { bubbles: true })); });
@@ -1543,13 +1581,20 @@ $("t-list").addEventListener("click", (e) => {
   if (b.dataset.udel != null) { t.uniq.splice(+b.dataset.udel, 1); renderTr(); }
   if (b.dataset.umac != null) { const ui = +b.dataset.umac; openMacro($(`t-${ti}-u-${ui}`), (t.name || "트레이너") + " · 고유 " + (t.uniq[ui].name || ui + 1)); }
 });
+$("t-list").addEventListener("toggle", (e) => {
+  const d = e.target; if (!d.classList || !d.classList.contains("tr-card")) return;
+  const t = S.tr[+d.dataset.ti]; if (!t) return;
+  t.open = d.open; trFoldLabel(); save();
+  if (d.open) d.querySelectorAll("textarea").forEach(autosize);
+}, true);
+$("t-fold").addEventListener("click", () => { const close = S.tr.some((t) => t.open !== false); S.tr.forEach((t) => { t.open = !close; }); renderTr(); save(); });
 $("t-home").addEventListener("click", () => { S.trHome = true; renderTr(); window.scrollTo({ top: 0, behavior: "smooth" }); });
-$("t-add").addEventListener("click", () => { S.trHome = false; S.tr.push({ name: "", q: { 지시: "C", 육성: "C", 통솔: "C", 능력: "C" }, uniq: [{ name: "", desc: "" }] }); S.trFrom = ""; renderTr(); const c = $("t-list").lastElementChild; if (c) c.scrollIntoView({ behavior: "smooth", block: "start" }); });
+$("t-add").addEventListener("click", () => { S.trHome = false; S.tr.push({ name: "", q: { 지시: "C", 육성: "C", 통솔: "C", 능력: "C" }, uniq: [{ name: "", desc: "" }], open: true }); S.trFrom = ""; renderTr(); const c = $("t-list").lastElementChild; if (c) c.scrollIntoView({ behavior: "smooth", block: "start" }); });
 $("t-in-read").addEventListener("click", () => {
   const ts = parseTrainers($("t-in-text").value);
   if (!ts.length) { $("t-in-msg").innerHTML = '<span class="err">읽은 트레이너가 없어요 (줄 맨 앞에 이름이 있어야 해요).</span>'; return; }
   const oldPt = new Map(S.tr.map((t) => [t.name, t.pt]));   // 줄에는 PT 가 없으니 같은 이름이면 이 페이지에 적은 PT 를 남김
-  S.tr = ts.map((t) => ({ name: t.name, q: Object.assign({ 지시: "C", 육성: "C", 통솔: "C", 능력: "C" }, t.q), uniq: t.uniq, pt: oldPt.get(t.name) }));
+  S.tr = ts.map((t) => ({ name: t.name, q: Object.assign({ 지시: "C", 육성: "C", 통솔: "C", 능력: "C" }, t.q), uniq: t.uniq, pt: oldPt.get(t.name), open: ts.length === 1 }));   // 여러 명이면 접어 둠
   S.trFrom = "읽어 온 줄: " + ts.map((t) => t.name).join(", "); S.trHome = false;
   renderTr();
   const w = ts.flatMap((t) => t.warn.map((x) => t.name + ": " + x));
@@ -2012,7 +2057,7 @@ function fromGame() {
     const ts = parseTrainers(t);
     for (const x of ts) {
       const i = S.tr.findIndex((y) => y.name === x.name), old = i >= 0 ? S.tr[i] : null;
-      const nt = { name: x.name, q: Object.assign({ 지시: "C", 육성: "C", 통솔: "C", 능력: "C" }, x.q), uniq: x.uniq, pt: old ? old.pt : undefined };
+      const nt = { name: x.name, q: Object.assign({ 지시: "C", 육성: "C", 통솔: "C", 능력: "C" }, x.q), uniq: x.uniq, pt: old ? old.pt : undefined, open: true };
       if (i >= 0) S.tr[i] = nt; else S.tr.push(nt);
       trName = trName || x.name;
     }
@@ -2036,7 +2081,7 @@ function fromGame() {
 // ───────── 시작 ─────────
 $("ver").textContent = `기술 ${D.moves.length.toLocaleString()} · 특성 ${D.abil.length} · 소지품 ${D.items.length} · 구문 ${D.phrases.filter((p) => p.kind !== "rule").length}`;
 loadTableCache(); loadPhrCache();
-renderMon(); renderTr(); setTab(S.tab === "tr" ? "tr" : "mon");
+renderMon(); renderTr(); setTab(S.tab === "tr" ? "tr" : "mon"); monFoldLabel();
 fromGame(); window.addEventListener("hashchange", fromGame);
 syncSheet(false); syncPhrases(false);
 window.__oremas = { parseMon, buildMon, parseTrainers, buildTrainer, qualityType, lint, sortTags, addTag, defaultsFrom, fillForm, compose, slotToks, phrasesFromRows, parseCSV, tableFromRows, autoExpGrant, sansikFill, sansikParse, SANS_TB, get TB() { return TB; }, monQ, expOk, tacOk, breedAA, privOk, potRuleWarns };
