@@ -1736,6 +1736,25 @@ const GAME = (() => {
   let state = "idle", info = null, prog = "", err = "", listeners = [];
   const notify = () => { for (const f of listeners) try { f(); } catch (e) {} };
   function call(fn, text) { window.__oremasOut = ""; window[fn](String(text)); const o = window.__oremasOut; return o ? JSON.parse(o) : null; }
+  // 큰 파일(wasm 40MB · pck 7MB)은 GitHub 에 gzip(.gz, 합쳐 약 12MB)으로 올려 두고 여기서 풀어 씀 (Pages 가 wasm 을 압축 안 해서 — 사용자 10-27 05:36 「누를 때마다 44MB」)
+  // 한 번 받은 것은 브라우저 저장소(Cache API)에 판 번호별로 보관 → 다음부터는 안 받음 (판이 바뀌면 새로 받고 옛것은 지움)
+  const GZ = { "checker.wasm": "application/wasm", "checker.pck": "application/octet-stream" };
+  let cacheName = "", origFetch = null;
+  function fileOf(u) { u = String(u).split("?")[0]; for (const k in GZ) if (u.endsWith("/" + k) || u === k || u.endsWith(DIR + k)) return k; return ""; }
+  async function fetchFile(name, ver) {
+    const key = DIR + name;
+    let c = null;
+    if (window.caches) { try { c = await caches.open(cacheName); const hit = await c.match(key); if (hit) { prog = "저장해 둔 해석기 여는 중…"; notify(); return hit; } } catch (e) { c = null; } }
+    const r = await origFetch(DIR + name + ".gz" + (ver ? "?v=" + ver : ""));
+    if (!r.ok) throw new Error(name + ".gz 를 못 받았어요 (" + r.status + ")");
+    const total = +r.headers.get("content-length") || 0; let got = 0;
+    const counted = new ReadableStream({ async start(ctl) { const rd = r.body.getReader(); for (;;) { const { done, value } = await rd.read(); if (done) break; got += value.length; prog = (name === "checker.wasm" ? "해석기 받는 중 " : "데이터 받는 중 ") + (total ? Math.round(got / total * 100) + "%" : Math.round(got / 1048576) + "MB"); notify(); ctl.enqueue(value); } ctl.close(); } });
+    if (!window.DecompressionStream) throw new Error("이 브라우저는 gzip 풀기를 못 해요 (브라우저를 최신으로)");
+    const buf = await new Response(counted.pipeThrough(new DecompressionStream("gzip"))).arrayBuffer();
+    const mk = () => new Response(buf, { headers: { "Content-Type": GZ[name], "Content-Length": String(buf.byteLength) } });
+    if (c) { try { await c.put(key, mk()); } catch (e) { console.warn("[game] cache put", e); } }
+    return mk();
+  }
   async function load() {
     if (state === "loading" || state === "ready") return;
     if (!window.WebAssembly) { state = "fail"; err = "이 브라우저는 wasm 을 못 돌려요"; notify(); return; }
@@ -1743,12 +1762,15 @@ const GAME = (() => {
     try {
       let ver = "";
       try { const r = await fetch(DIR + "ver.json?t=" + Date.now(), { cache: "no-store" }); if (r.ok) ver = String((await r.json()).build || ""); } catch (e) {}
+      cacheName = "oremas-checker-" + (ver || "0");
+      if (window.caches) { try { for (const k of await caches.keys()) if (k.startsWith("oremas-checker-") && k !== cacheName) await caches.delete(k); } catch (e) {} }
       if (!document.getElementById("oremas-canvas")) { const c = document.createElement("canvas"); c.id = "oremas-canvas"; c.width = 2; c.height = 2; c.tabIndex = -1; document.body.appendChild(c); }
       if (!window.Engine) await new Promise((ok, no) => { const sc = document.createElement("script"); sc.src = DIR + "checker.js" + (ver ? "?v=" + ver : ""); sc.onload = ok; sc.onerror = () => no(new Error("checker.js 를 못 받았어요 (아직 안 올렸나요?)")); document.head.appendChild(sc); });
+      // Godot 엔진이 fetch 로 wasm · pck 를 받는 자리를 가로채 .gz + 저장소로
+      if (!origFetch) { origFetch = window.fetch.bind(window); window.fetch = (input, init) => { const name = fileOf(input instanceof Request ? input.url : input); return name ? fetchFile(name, ver) : origFetch(input, init); }; }
       const ready = new Promise((ok) => { window.oremasOnReady = ok; });
-      const eng = new window.Engine({ executable: DIR + "checker", mainPack: DIR + "checker.pck" + (ver ? "?v=" + ver : ""), canvas: document.getElementById("oremas-canvas"), canvasResizePolicy: 0, focusCanvas: false,
+      const eng = new window.Engine({ executable: DIR + "checker", mainPack: DIR + "checker.pck", canvas: document.getElementById("oremas-canvas"), canvasResizePolicy: 0, focusCanvas: false,
         args: ["--rendering-driver", "dummy", "--audio-driver", "Dummy"],
-        onProgress: (cur, tot) => { prog = tot ? "받는 중 " + Math.round(cur / tot * 100) + "%" : "받는 중 " + Math.round(cur / 1048576) + "MB"; notify(); },
         onPrintError: (...a) => { console.warn("[game]", ...a); } });
       const title = document.title;
       await eng.startGame();
@@ -2390,7 +2412,7 @@ function gameHead() {
   if (st === "ready") return `<div class="gm"><span class="st on">🎮 포텐셜 자동화 확인 켜짐 — 게임 해석기 판 ${esc(GAME.info && GAME.info.build || "?")} · 구문 ${GAME.info && GAME.info.phrases || "?"}줄</span></div>`;
   if (st === "loading") return `<div class="gm"><span class="st">🎮 포텐셜 자동화 확인 — ${esc(GAME.prog || "받는 중…")}</span></div>`;
   if (st === "fail") return `<div class="gm"><button class="b sm" id="mac-game">🎮 포텐셜 자동화 확인 다시 시도</button><span class="st bad">${esc(GAME.err)}</span></div>`;
-  return `<div class="gm"><button class="b sm" id="mac-game">🎮 포텐셜 자동화 확인</button><span class="st">게임 해석기를 받아(약 10MB, 한 번) 게임과 똑같이 판정해요</span></div>`;
+  return `<div class="gm"><button class="b sm" id="mac-game">🎮 포텐셜 자동화 확인</button><span class="st">게임 해석기를 받아(약 12MB, 처음 한 번만) 게임과 똑같이 판정해요</span></div>`;
 }
 GAME.on(() => { FRAG_LAST = null; renderFrag(); if (GAME.ready && typeof lintRefreshAll === "function") lintRefreshAll(); });
 function renderFrag() {
