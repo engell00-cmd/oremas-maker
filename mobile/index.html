@@ -556,26 +556,32 @@ const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<
 // ───────── 게임 규칙 (scripts/data/monster_paste.gd · monster_db.gd · trainer_db.gd 와 같게) ─────────
 const TYPES = D.types;                         // 노말 … 신 (다크 포함)
 // 0~19 = 게임 포텐셜 20칸 · 20~22 = 237단계 늘어나는 칸 (게임 227단계 MonsterDB.EXTRA_SLOT_NAMES) 【특권 2】【특권 3】【역할 2】
-const SLOTS = ["역할","분류","주인","이명","종족","종족","종족","종족","속별","유대","선","회피","내성","격","범용","부수","특권","PT","PT","전술","특권","특권","역할"];
-const BASE_SLOTS = 20, EX_PRIV = [20, 21], EX_ROLE = 22;
+// 23 = 249-② 【전술 2】 (게임 MonsterDB.TAC_OPEN_RE — 「『전술 포텐셜』을 2개까지 습득할 수 있다」가 포켓몬 포텐셜·전용·트레이너 고유에 있으면)
+const SLOTS = ["역할","분류","주인","이명","종족","종족","종족","종족","속별","유대","선","회피","내성","격","범용","부수","특권","PT","PT","전술","특권","특권","역할","전술"];
+const BASE_SLOTS = 20, EX_PRIV = [20, 21], EX_ROLE = 22, EX_TAC = 23;
 const DD_SLOTS = [0, 1, 2, 11, 12, 13, 14, 15, 16, 20, 21, 22];   // M8 드롭다운 칸 (역할·분류·주인·회피·내성·격·범용·부수·특권 + 늘어나는 칸)
-const SLOT_ORDER = [0, 22, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 20, 21, 17, 18, 19];   // 화면 순서 (【역할 2】는 역할 밑 · 【특권 2·3】은 특권 밑)
-const CODE_OF_SLOT = [0,1,2,3,4,4,4,4,5,6,7,8,9,10,11,13,14,15,15,15,14,14,0];
+const SLOT_ORDER = [0, 22, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 20, 21, 17, 18, 19, 23];   // 화면 순서 (【역할 2】는 역할 밑 · 【특권 2·3】은 특권 밑)
+const CODE_OF_SLOT = [0,1,2,3,4,4,4,4,5,6,7,8,9,10,11,13,14,15,15,15,14,14,0,15];
 const CODE_SLOTS = {0:[0,22],1:[1],2:[2],3:[3],4:[4,5,6,7],5:[8],6:[9],7:[10],8:[11],9:[12],10:[13],11:[14],13:[15],14:[16,20,21],15:[17,18,19]};
 // 늘어나는 칸이 열렸나 (게임과 같게: 특권 = 20칸 글의 「『특권』을 N개까지 얻는다」 → N-1칸 · 역할 2 = 『듀얼 롤』「… 임명할 수 있다」 · 『셀프 커맨드』 — 트레이너 통솔·수화폼 등 마지막 판단은 게임)
 const EX_PRIV_RE = /『특권』(?:을|를)\s*(\d)\s*개까지\s*(?:얻는다|가질 수 있다|보유할 수 있다|지닐 수 있다)/g;
 const EX_ROLE_RE = /임명할 수 있다|『선발』『킬러』『어시스트』 중 하나를 추가로 부여한다/;
-function extraOpen(m) {
+const EX_TAC_RE = /『전술(?:\s*포텐셜)?』(?:을|를)\s*(\d)\s*개까지\s*(?:습득할 수 있다|습득한다|얻는다|가질 수 있다|보유할 수 있다|지닐 수 있다)/;
+// tr = 트레이너 (없으면 지금 고치는 포켓몬이면 그 트레이너)
+function extraOpen(m, tr) {
   let priv = 0, role = 0;
+  if (tr === undefined) { try { if (S && m === S.mon) tr = monTrainer(); } catch (e) { tr = null; } }
+  const tacTexts = m.pots.slice(0, BASE_SLOTS).map((p) => String(p.desc)).concat([String(m.sig.desc)], tr ? tr.uniq.map((u) => String(u.desc)) : []);
+  const tac = tacTexts.some((x) => { const mm = EX_TAC_RE.exec(x); return mm && +mm[1] >= 2; }) ? 1 : 0;
   for (let i = 0; i < BASE_SLOTS; i++) {
     const t = String(m.pots[i].name) + " " + String(m.pots[i].desc);
     for (const x of t.matchAll(EX_PRIV_RE)) priv = Math.max(priv, Math.min(2, Math.max(0, +x[1] - 1)));
     if (EX_ROLE_RE.test(t)) role = 1;
   }
   if (EX_ROLE_RE.test(String(m.sig.name) + " " + String(m.sig.desc))) role = 1;
-  return { 특권: priv, 역할: role };
+  return { 특권: priv, 역할: role, 전술: tac };
 }
-const exOpenAt = (i, op) => i === EX_ROLE ? op.역할 > 0 : EX_PRIV.includes(i) ? EX_PRIV.indexOf(i) < op.특권 : true;
+const exOpenAt = (i, op) => i === EX_ROLE ? op.역할 > 0 : i === EX_TAC ? op.전술 > 0 : EX_PRIV.includes(i) ? EX_PRIV.indexOf(i) < op.특권 : true;
 const STAT_ORDER = ["hp","atk","def","spa","spd","spe"];
 const STAT_KO = {hp:"HP",atk:"공격",def:"방어",spa:"특공",spd:"특방",spe:"스피드"};
 const MOVE_SLOTS = 10, DEFAULT_LEVEL = 50;
@@ -590,7 +596,7 @@ const slotLabel = (i) => {
   const n = SLOTS[i];
   if (n === "종족") return "종족 " + (i - 3);
   if (n === "PT") return "PT " + (i - 16);
-  if (i >= BASE_SLOTS) return n + " " + (i === EX_ROLE ? 2 : EX_PRIV.indexOf(i) + 2);
+  if (i >= BASE_SLOTS) return n + " " + (i === EX_ROLE || i === EX_TAC ? 2 : EX_PRIV.indexOf(i) + 2);
   return n;
 };
 function blankMon() {
@@ -640,13 +646,17 @@ function parseMon(text) {
     const code = i < codes.length ? toInt(codes[i], 999) : 999;
     if (!(code in CODE_SLOTS)) { warns.push(`포텐셜 『${pn}』의 칸 번호 ${i < codes.length ? codes[i] : "(없음)"} 를 몰라서 넣지 않았어요`); continue; }
     // #63 (게임과 같게): 칸 번호 15 = PT·PT·전술 세 칸이 같이 씀 → 전술 이름이면 【전술】 칸부터, 아니면 PT 칸부터 (예전 줄도 그대로 읽힘)
-    const sl = code === 15 && TAC_NAMES().has(pn) ? [19, 17, 18] : CODE_SLOTS[code];
+    const sl = code === 15 && TAC_NAMES().has(pn) ? [19, EX_TAC, 17, 18] : CODE_SLOTS[code];   // 249-②: 두 번째 전술 = 【전술 2】 (안 열렸으면 아래에서 PT 칸으로)
     const u = used[code] || (used[code] = new Set()), at2 = sl.find((x) => !u.has(x));
     if (at2 == null) { warns.push(`포텐셜 『${pn}』: 【${SLOTS[sl[0]]}】 칸이 이미 다 찼어요`); continue; }
     u.add(at2);
     m.pots[at2] = { name: pn, desc: pd.replaceAll("<br>", "\n") };
   }
   m.sig = { name: parts.length > 4 ? clean(parts[4]) : "", desc: parts.length > 5 ? clean(parts[5]).replaceAll("<br>", "\n") : "" };
+  if ((m.pots[EX_TAC].name || m.pots[EX_TAC].desc) && !extraOpen(m, null).전술) {   // 게임과 같게: 【전술 2】가 안 열렸으면 빈 【PT】 칸으로 (트레이너 고유로 열리는 것은 게임이 판단)
+    const pt = [17, 18].find((x) => !m.pots[x].name && !m.pots[x].desc);
+    if (pt != null) { m.pots[pt] = m.pots[EX_TAC]; m.pots[EX_TAC] = { name: "", desc: "" }; }
+  }
   const mt = parts.length > 6 ? parts[6].trim() : "";
   let k = 0;
   for (const chunk of mt.split("\\")) {
@@ -1054,10 +1064,10 @@ $("m-pot-list").innerHTML = SLOT_ORDER.map((i) => {
       <div class="note" id="m-pot-${i}-from" hidden></div>
       <div class="row">${!dd ? `<button class="b sm pri" data-pick="${i}"${PICK_BTN(i) ? "" : " hidden"}>고르기</button>` : ""}<button class="b sm" data-macro="${i}">짜기</button><button class="b sm ghost" data-potclear="${i}">비우기</button></div>
     </div>`;
-  if (!dd) return `
+  if (!dd) return `${ex ? `<div class="exslot" id="m-dds-${i}">` : ""}
   <details class="slot" id="m-pot-${i}">
     <summary><span class="sl">${esc(slotLabel(i))}</span><span class="sn" id="m-pot-${i}-sum"></span></summary>${inner}
-  </details>`;
+  </details>${ex ? `<div class="note exnote" id="m-ex-${i}"></div></div>` : ""}`;
   return `
   <div class="ddslot${ex ? " exslot" : ""}" id="m-dds-${i}">
     <div class="ddrow"><span class="sl">${esc(slotLabel(i))}${i === 15 ? " · 자동" : ""}</span><select class="ddsel" id="m-dd-${i}" data-dd="${i}" aria-label="${esc(slotLabel(i))} 고르기"></select></div>${ex ? `<div class="note exnote" id="m-ex-${i}"></div>` : ""}
@@ -1173,8 +1183,8 @@ function refreshMon() {
     if (i >= BASE_SLOTS) {   // 237단계: 늘어나는 칸 = 열렸거나 글이 있을 때만 보임
       const open = exOpenAt(i, op), n = $("m-ex-" + i);
       $("m-dds-" + i).hidden = !open && !has;
-      n.innerHTML = !open && has ? '<span class="warn">' + (i === EX_ROLE ? "2번째 역할을 주는 포텐셜(예: 『듀얼 롤』)이 없어요 — 게임에 넣으면 이 칸은 빠져요" : "이 칸을 열어 주는 포텐셜(예: 「『특권』을 " + (EX_PRIV.indexOf(i) + 2) + "개까지 얻는다」)이 없어요 — 게임에 넣으면 이 칸은 빠져요") + "</span>"
-        : i === EX_ROLE ? "2번째 역할 (배틀 준비 「2번째 역할」 기본값 — 트레이너 통솔 등은 게임이 확인)" : "포텐셜 효과로 늘어난 특권 칸";
+      n.innerHTML = !open && has ? '<span class="warn">' + (i === EX_ROLE ? "2번째 역할을 주는 포텐셜(예: 『듀얼 롤』)이 없어요 — 게임에 넣으면 이 칸은 빠져요" : i === EX_TAC ? "【전술 2】를 열어 주는 글(「『전술 포텐셜』을 2개까지 습득할 수 있다.」 — 이 포켓몬 포텐셜·전용이나 트레이너 고유)이 없어요 — 게임에서는 빈 【PT】 칸으로 들어가요" : "이 칸을 열어 주는 포텐셜(예: 「『특권』을 " + (EX_PRIV.indexOf(i) + 2) + "개까지 얻는다」)이 없어요 — 게임에 넣으면 이 칸은 빠져요") + "</span>"
+        : i === EX_ROLE ? "2번째 역할 (배틀 준비 「2번째 역할」 기본값 — 트레이너 통솔 등은 게임이 확인)" : i === EX_TAC ? "「『전술 포텐셜』을 2개까지 습득할 수 있다」로 열린 두 번째 전술 칸" : "포텐셜 효과로 늘어난 특권 칸";
     }
     $("m-pot-" + i).classList.toggle("filled", !!has);
     const s = $("m-pot-" + i + "-sum"), dd = DD_SLOTS.includes(i);
@@ -1182,7 +1192,7 @@ function refreshMon() {
     else s.textContent = has ? (p.name ? "『" + p.name + "』 " : "") + String(p.desc).replace(/\n/g, " ") : "(비어 있음)";
     s.classList.toggle("empty", !has);
   });
-  const exN = op.특권 + op.역할;
+  const exN = op.특권 + op.역할 + op.전술;
   $("m-pots-hint").textContent = filled + " / " + (BASE_SLOTS + exN) + "칸" + (exN ? " (늘어난 칸 " + exN + ")" : "");
   $("m-sig-hint").textContent = m.sig.name ? "『" + m.sig.name + "』" : "(비어 있음)";
   let mc = 0;
