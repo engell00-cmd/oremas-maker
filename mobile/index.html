@@ -91,6 +91,8 @@ button.b:active { transform: translateY(1px); }
 button.b.pri { background: var(--neon); color: var(--ink); border-color: var(--neon); }
 button.b.gold { background: var(--gold); color: var(--ink); border-color: var(--gold); }
 button.b.sm { padding: 6px 9px; font-size: 13px; }
+button.b.lint { min-width: 46px; } button.b.lint.ok { color: #7fe08a; } button.b.lint.bad { color: #ff6b6b; } button.b.lint.mid { color: #ffd24a; }
+.lintit { display: flex; gap: 8px; align-items: flex-start; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #2a3560; } .lintto { margin-top: 3px; font-size: 13px; }
 button.b.ghost { background: transparent; }
 button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .note { color: var(--sub); font-size: 12.5px; }
@@ -412,7 +414,7 @@ button.b.big { font-size: 19px; padding: 16px 14px; border-radius: 12px; width: 
       <div class="inner">
         <label class="f">이름<input id="m-sig-name" data-k="sig.name" autocomplete="off"></label>
         <label class="f">설명<textarea id="m-sig-desc" data-k="sig.desc" rows="3"></textarea></label>
-        <div class="row"><button class="b pri" id="m-sig-pick">고르기</button><button class="b" id="m-sig-macro">짜기</button></div>
+        <div class="row"><button class="b pri" id="m-sig-pick">고르기</button><button class="b" id="m-sig-macro">짜기</button><button class="b sm lint" data-lintfor="m-sig-desc" title="교정">·</button></div>
         <div class="note">[고르기] = 4.xlsx 「테이블(싱글)」 전용 27개 + 『마검』 (밸런스 제한 없이 다 보여요 · 「○」 자리는 고쳐 쓰기)</div>
         <div class="note">줄에는 첫 번째 전용만 들어가요. 2·3번째 전용은 게임이 원래 것을 그대로 둬요.</div>
       </div>
@@ -1066,7 +1068,7 @@ $("m-pot-list").innerHTML = SLOT_ORDER.map((i) => {
       <label class="f">이름<input id="m-pot-${i}-name" data-k="pots.${i}.name" autocomplete="off"></label>
       <label class="f">설명<textarea id="m-pot-${i}-desc" data-k="pots.${i}.desc" rows="3"></textarea></label>
       <div class="note" id="m-pot-${i}-from" hidden></div>
-      <div class="row">${!dd ? `<button class="b sm pri" data-pick="${i}"${PICK_BTN(i) ? "" : " hidden"}>고르기</button>` : ""}<button class="b sm" data-macro="${i}">짜기</button><button class="b sm ghost" data-potclear="${i}">비우기</button></div>
+      <div class="row">${!dd ? `<button class="b sm pri" data-pick="${i}"${PICK_BTN(i) ? "" : " hidden"}>고르기</button>` : ""}<button class="b sm" data-macro="${i}">짜기</button>${lintBtn("m-pot-" + i + "-desc")}<button class="b sm ghost" data-potclear="${i}">비우기</button></div>
     </div>`;
   if (!dd) return `${ex ? `<div class="exslot" id="m-dds-${i}">` : ""}
   <details class="slot" id="m-pot-${i}">
@@ -1164,7 +1166,7 @@ function renderMon() {
     el.value = v ?? "";
   }
   document.querySelectorAll("#view-mon select.typed").forEach(paintTypeSelect);
-  refreshMon(); autosizeAll();
+  refreshMon(); autosizeAll(); lintAll();
 }
 function refreshMon() {
   const m = S.mon;
@@ -1835,7 +1837,7 @@ function renderTr() {
       <div class="uq">
         <label class="f">고유 ${ui + 1} 이름<input data-uk="${ui}.name" value="${esc(u.name)}" autocomplete="off"></label>
         <label class="f">효과<textarea data-uk="${ui}.desc" rows="3" id="t-${ti}-u-${ui}">${esc(u.desc)}</textarea></label>
-        <div class="row"><button class="b sm" data-umac="${ui}">짜기</button><button class="b sm ghost" data-udel="${ui}">이 고유 빼기</button></div>
+        <div class="row"><button class="b sm" data-umac="${ui}">짜기</button>${lintBtn("t-" + ti + "-u-" + ui)}<button class="b sm ghost" data-udel="${ui}">이 고유 빼기</button></div>
       </div>`).join("")}
       <div class="row"><button class="b sm" data-uadd>＋ 고유</button></div>
       <div class="ptbox"><div class="grp-h">PT 포텐셜 — 이 트레이너의 포켓몬 전원에게</div>
@@ -1852,7 +1854,7 @@ function renderTr() {
     + '<p>이미 만든 줄이 있으면 위 [줄 읽어 오기]</p></div>' + orphHtml;
   $("t-nowbar").hidden = home; $("t-now").innerHTML = `트레이너 <b>${S.tr.length}명</b>`;
   $("t-add").parentElement.hidden = home; $("t-out").hidden = home; trFoldLabel();
-  updateTrOut(); autosizeAll();
+  updateTrOut(); autosizeAll(); lintAll();
 }
 function updateTrOut() {
   fixCount = 0;
@@ -2065,6 +2067,155 @@ function addTag(text, li, tag) {
   lines[li] = sortTags(pre + cluster + "【" + tag + "】/" + rest);
   return [lines.join("\n"), true];
 }
+// ───────── 249-⑤ 교정 (게임 scripts/dex/pot_lint.gd 와 같은 규칙 · 사용자 10-26 20:58 결정: 칸마다 「틀린 곳 N개」 + [고치기] · [모두 고치기]) ─────────
+// 검사 = ① 배틀이 못 읽는 조각 (웹은 구문 DB 로만 판단 — ✘ 꼴만 셈, ? 는 게임에서 확인) ② 말투·표기 ③ 태그 ④ 『이름』
+const LINT = (() => {
+  const STAT_MAP = { "공격력": "공격", "방어력": "방어", "특수공격": "특공", "특수 공격": "특공", "특수방어": "특방", "특수 방어": "특방" };
+  const NUM = { "한": "1", "두": "2", "세": "3", "네": "4" };
+  const PCT = { 50: "1/2", 25: "1/4", 33: "1/3", 75: "3/4", 20: "1/5", 10: "1/10", 66: "2/3", 67: "2/3", 12: "1/8" };
+  const KIND_KO = { read: "배틀이 못 읽음", style: "말투·표기", tag: "태그", name: "이름" };
+  const stat = (s) => STAT_MAP[s] || STAT_MAP[s.replace(/\s/g, "")] || s;
+  const num = (n) => { n = String(n).replace(/[+-]/g, ""); return NUM[n] || n; };
+  const V = "(상승|올리|올린|올립|올라|오르|오른|올려|증가|하락|내리|내린|내립|내려|떨어|감소)[가-힣]*";
+  const down = (v) => /하락|내리|내린|내립|내려|떨어|감소/.test(v) ? "-" : "+";
+  const ST_VERB = [[/화상을 ?입힌다|화상을 ?입게 한다/g, "화상"], [/마비시킨다|마비를 ?건다/g, "마비"], [/잠재운다|잠들게 한다/g, "잠듦"], [/혼란시킨다|혼란을 ?건다/g, "혼란"], [/맹독을 ?건다/g, "맹독"], [/중독시킨다|독을 ?건다|독에 걸리게 한다/g, "독"], [/얼린다|얼어붙게 한다/g, "얼음"], [/풀죽게 한다|풀죽인다/g, "풀죽음"]];
+  const RULES = [
+    ["polite", "끝맺음은 「~한다」 꼴로 (합니다·해요 → 한다)", /(합니다|됩니다|입니다|해요|돼요|이에요|예요)(?=[.\s」)]|$)/g, (m, a) => ({ "합니다": "한다", "됩니다": "된다", "입니다": "이다", "해요": "한다", "돼요": "된다", "이에요": "이다", "예요": "이다" })[a]],
+    ["noun_end", "「~함 / ~됨」 대신 「~한다 / ~된다」", /([^\s포])(함|됨)(?=\.|$)/g, (m, a, b) => a + (b === "함" ? "한다" : "된다")],
+    ["stat_word", "능력치 이름은 「공격 · 방어 · 특공 · 특방 · 스피드」", /(공격력|방어력|특수 ?공격|특수 ?방어)(?!\s*:)/g, (m, a) => stat(a)],
+    ["dmg_word", "「데미지 · 피해량」은 「대미지」", /데미지|피해량/g, () => "대미지"],
+    ["rank_all", "모든 능력치 랭크는 「공격/방어/특공/특방/스피드 : +N」 한다", new RegExp("(?:모든 능력치|전 ?능력치?)(?:을|를|이|가|의)?\\s*([+-]?\\d|한|두|세)\\s*(?:랭크|단계|칸)\\s*" + V, "g"), (m, n, v) => `「공격/방어/특공/특방/스피드 : ${down(v)}${num(n)}」 한다`],
+    ["rank", "랭크 변화는 「능력치 : +N」 한다 꼴로", new RegExp("(?<![가-힣])(?:「)?(공격|방어|특공|특방|스피드|명중|회피)(?:」)?(?:을|를|이|가|의)?\\s*([+-]?\\d|한|두|세)\\s*(?:랭크|단계|칸)\\s*" + V, "g"), (m, s, n, v, i, t) => /종족치/.test(t.slice(Math.max(0, i - 12), i)) ? "" : `「${stat(s)} : ${down(v)}${num(n)}」 한다`],
+    ["rank_raw", "랭크 변화는 「능력치 : +N」 꼴로 (낫표 · 띄어쓰기)", /(?<![「\w가-힣/])(공격|방어|특공|특방|스피드|명중|회피)\s*([+-])\s*(\d)(?![\d.배]|」)/g, (m, s, d, n) => `「${stat(s)} : ${d}${n}」`],
+    ["colon_space", "「X : Y」 띄어쓰기 (쌍점 앞뒤 한 칸)", /「([^」:：]+?)\s*[:：]\s*([^」]+)」/g, (m, a, b) => `「${a.trim()} : ${b.trim()}」`],
+    ["hp_cond", "HP 조건은 「HP : 1/2」 이하일 때 꼴로", /(?:「)?HP(?:」)?(?:가|이)?\s*(절반|반|\d+\s*%|\d\/\d)\s*(이하|미만|이상|초과)(?:가 되었을 때|일 때|이면|라면|일때)/g, (m, v, c) => { v = v.replace(/\s/g, ""); const f = v === "절반" || v === "반" ? "1/2" : /%$/.test(v) ? (PCT[parseInt(v)] || v) : v; return `「HP : ${f}」 ${c === "미만" ? "이하" : c === "초과" ? "이상" : c}일 때`; }],
+    ["hp_bracket", "「HP : 1/2」 이하일 때 (「이하」는 낫표 밖)", /「HP\s*:\s*(\d+\/\d+)\s*(이하|이상)」\s*일 ?때/g, (m, a, b) => `「HP : ${a}」 ${b}일 때`],
+    ["hp_full", "「HP가 가득일 때」는 「HP : 가득」일 때", /(?<!「)HP(?:가|이)?\s*(?:가득|최대|풀)(?:일 때|이면|일때)/g, () => "「HP : 가득」일 때"],
+    ["turn_end", "「이번 턴 동안 · 턴 끝까지」는 「턴 종료 시까지」", /이번 턴 (?:동안|끝까지|종료까지)|턴(?:이)? 끝날 때까지|턴 끝까지|해당 턴 동안|턴 종료까지/g, () => "턴 종료 시까지"],
+    ["turns", "턴 수는 「N턴 동안」", /(\d)\s*턴\s*(?:간|동안만|동안에|동안)(?=[\s,]|$)/g, (m, n) => `${n}턴 동안`],
+    ["spacing", "띄어쓰기: 종료 시 · 개시 시 · 준비 시 · 상태 이상 · 상태 변화", /(종료|개시|준비)시(?=[\s까]|$)|상태이상|상태변화/g, (m, a) => a ? a + " 시" : m === "상태이상" ? "상태 이상" : "상태 변화"],
+    ["crit", "급소는 「급소에 맞기 쉬워진다(C+N)」", /급소(?:율|확률)(?:이|가|을|를)?\s*(?:(\d)\s*(?:랭크|단계)\s*)?(?:상승|증가|올라간다|올린다)(?:한다|된다)?|급소에 잘 맞는다/g, (m, n) => `급소에 맞기 쉬워진다(C+${n || 1})`],
+    ["kind_word", "기술 분류는 「물리기 · 특수기 · 접촉기 · 변화기」", /(?<![「가-힣])(물리|특수|접촉|변화) ?기술(?!」)/g, (m, k) => `「${k}기」`],
+    ["tag_bracket", "태그는 겹낫표 【】로 (【1/시】 【선행】 …)", /[\[(<]\s*(\d\s*\/\s*시|선행|강제|보급|소진|탈진|사전|비밀|방호|수세|공세|옵저버|자동|유일)\s*[\])>]/g, (m, w) => `【${w.replace(/\s+/g, "")}】`],
+    ["quote", "키워드는 낫표 「」로 (따옴표 대신)", /[“"‘']([가-힣A-Za-z0-9 :+\-/]{1,14})[”"’']/g, (m, w) => `「${w}」`],
+  ];
+  const PERIOD = /(한다|된다|않는다|진다|있다|없다|만든다|오른다|받는다|얻는다|막는다|버틴다|떠오른다)([)」』】]*)\s*$/;
+  function style(text) {
+    const out = [], lines = text.split("\n");
+    lines.forEach((line, li) => {
+      for (const [re, s] of ST_VERB) for (const m of line.matchAll(re)) out.push({ kind: "style", id: "state_verb", line: li, msg: `상태 이상은 「${s}」 상태로 만든다`, from: m[0], to: `「${s}」 상태로 만든다`, at: m.index });
+      for (const [id, msg, re, to] of RULES) for (const m of line.matchAll(re)) {
+        if (!m[0]) continue;
+        const t = to(...m, m.index, line); if (!t || t === m[0]) continue;
+        out.push({ kind: "style", id, line: li, msg, from: m[0], to: t, at: m.index });
+      }
+      const nm = /^\s*\(?([1-9])[.)]\s*/.exec(line);
+      if (nm && lines.length > 1) out.push({ kind: "style", id: "number", line: li, msg: "효과가 여럿이면 ①② 번호", from: nm[0], to: "①②③④⑤⑥⑦⑧⑨"[+nm[1] - 1], at: 0 });
+      const pm = PERIOD.exec(line.trimEnd());
+      if (pm && line.trim().length >= 6) out.push({ kind: "style", id: "period", line: li, msg: "문장 끝에 마침표", from: pm[0].trimEnd(), to: pm[1] + pm[2] + ".", at: pm.index });
+    });
+    return out;
+  }
+  function tags(text) {
+    const out = [];
+    text.split("\n").forEach((line, li) => {
+      for (const c of clusters(line)) {
+        for (const t of c.tags) if (!knownTag(t)) out.push({ kind: "tag", id: "tag_unknown", line: li, msg: `사전에 없는 태그: 【${t}】 (배틀이 모르는 태그일 수 있어요)`, from: "", to: "" });
+        if (!(c.lead || c.slash)) continue;
+        const cl = line.slice(c.start, c.end);
+        if (c.lead && !c.slash && c.rest !== "" && !tailOnly(c.tags)) out.push({ kind: "tag", id: "tag_slash", line: li, msg: "태그 뒤에 「/」를 붙이고 효과를 써요 (【…】/효과)", from: cl, to: cl.trim() + "/" });
+        const ranked = c.tags.filter((t) => tagRank(t) >= 0), sorted = [...ranked].sort((a, b) => tagRank(a) - tagRank(b));
+        if (ranked.join("\u0000") !== sorted.join("\u0000")) out.push({ kind: "tag", id: "tag_order", line: li, msg: "태그 순서: " + TAG_ORDER_TEXT, from: cl.trim(), to: sortedTags(c.tags).map((t) => "【" + t + "】").join("") });
+        for (const w of tagConflicts(c.tags)) out.push({ kind: "tag", id: "tag_conflict", line: li, msg: w, from: "", to: "" });
+      }
+    });
+    return out;
+  }
+  function reads(text) {
+    const out = [];
+    for (const r of FC.analyze(text)) {
+      for (const p of r.pieces) {
+        if (p.st !== "no" || p.kind === "tag") continue;
+        const s = (p.sugg || []).find((x) => x.fill);
+        const info = (p.sugg || []).find((x) => !x.fill && x.why);
+        out.push({ kind: "read", id: "read_" + p.kind, line: r.line, msg: (p.note || "배틀이 못 읽어요") + `: 「${p.text}」` + (info ? " — " + info.why : ""), from: p.text, to: s ? s.fill : "" });
+      }
+    }
+    for (const n of FC.nameIssues(text)) out.push({ kind: "name", id: "name", line: -1, msg: `『${n.name}』 — 아는 이름에 없어요` + (n.near ? ` (혹시 『${n.near}』?)` : " (새 포텐셜 이름이면 괜찮아요)"), from: n.near ? `『${n.name}』` : "", to: n.near ? `『${n.near}』` : "" });
+    return out;
+  }
+  function fixOne(text, it) {
+    if (!it.to) return text;
+    if (it.line < 0) { const at = text.indexOf(it.from); return at < 0 ? text : text.slice(0, at) + it.to + text.slice(at + it.from.length); }
+    if (it.kind === "read") {
+      if (!text.split("\n")[it.line]?.includes(it.from)) for (const st of check(text).filter((x) => (x.kind === "style" || x.kind === "tag") && x.line === it.line && x.to)) text = fixOne(text, st);
+      return FC.replacePiece(text, it.line, it.from, it.to);
+    }
+    const lines = text.split("\n"), line = lines[it.line]; if (line == null) return text;
+    let at = line.indexOf(it.from, Math.max(0, (it.at || 0) - 2)); if (at < 0) at = line.indexOf(it.from); if (at < 0) return text;
+    lines[it.line] = line.slice(0, at) + it.to + line.slice(at + it.from.length);
+    return lines.join("\n");
+  }
+  const CACHE = new Map();
+  function check(text) {
+    text = String(text || ""); if (!text.trim() || text.trim() === "-") return [];
+    if (CACHE.has(text)) return CACHE.get(text);
+    const st = [];
+    for (const it of style(text).concat(tags(text))) {
+      if (it.to && st.some((o) => o.line === it.line && o.from && o.kind === it.kind && (o.from.includes(it.from) || it.from.includes(o.from)))) continue;
+      st.push(it);
+    }
+    let fixed = text; for (const it of st) fixed = fixOne(fixed, it);
+    const out = st.concat(reads(fixed).map((x) => Object.assign(x, fixed !== text && x.line >= 0 ? { after: true } : {})));
+    if (CACHE.size > 400) CACHE.clear();
+    CACHE.set(text, out);
+    return out;
+  }
+  function fixAll(text) {
+    let t = String(text || "");
+    for (let r = 0; r < 6; r++) {
+      const items = check(t).filter((it) => it.to && (it.kind === "style" || it.kind === "tag"));
+      if (!items.length) break;
+      let nt = t; for (const it of items) nt = fixOne(nt, it);
+      if (nt === t) break; t = nt;
+    }
+    return t;
+  }
+  return { check, fixOne, fixAll, KIND_KO, reset() { CACHE.clear(); } };
+})();
+// 칸 옆 단추 (data-lintfor = 글 칸 id) — 「✔ / ⚠ N / ·」
+function lintBtn(id) { return `<button class="b sm lint" data-lintfor="${id}" title="교정">·</button>`; }
+function lintPaint(b) {
+  const el = $(b.dataset.lintfor); if (!el) return;
+  const t = el.value; if (!t.trim() || t.trim() === "-") { b.textContent = "·"; b.className = "b sm lint"; b.disabled = true; b.title = "빈 칸"; return; }
+  b.disabled = false;
+  const it = LINT.check(t);
+  b.textContent = it.length ? "⚠ " + it.length : "✔";
+  b.className = "b sm lint " + (!it.length ? "ok" : it.some((x) => x.kind === "read") ? "bad" : "mid");
+  b.title = it.length ? `틀린 곳 ${it.length}개 — 눌러서 고칠 안 보기` : "틀린 곳이 없어요";
+}
+function lintAll() { for (const b of document.querySelectorAll("[data-lintfor]")) lintPaint(b); }
+let LINT_T = null, lintTimer = 0;
+document.addEventListener("input", (e) => {
+  const id = e.target && e.target.id; if (!id) return;
+  const b = document.querySelector(`[data-lintfor="${id}"]`); if (!b) return;
+  clearTimeout(lintTimer); lintTimer = setTimeout(() => lintPaint(b), 500);
+});
+function lintOpen(id) {
+  const el = $(id); if (!el) return; LINT_T = id;
+  const items = LINT.check(el.value);
+  const col = { read: "err", name: "warn", style: "okc", tag: "warn" };
+  const html = `<div class="note" style="white-space:pre-wrap">${esc(el.value)}</div>` + (items.length ? items.map((it, k) => `<div class="lintit"><div><b class="${col[it.kind] || ""}">[${LINT.KIND_KO[it.kind]}]</b> ${esc(it.msg)}${it.to ? `<div class="lintto">「${esc(it.from)}」 → <b class="okc">「${esc(it.to)}」</b>${it.after ? ' <span class="note">(말투·태그를 고친 뒤 기준)</span>' : ""}</div>` : ""}</div>${it.to ? `<button class="b sm pri" data-lfix="${k}">고치기</button>` : ""}</div>`).join("") : '<div class="okc">틀린 곳이 없어요 ✔</div>');
+  const can = items.some((it) => it.to && (it.kind === "style" || it.kind === "tag"));
+  openHelp("교정 — " + (items.length ? `틀린 곳 ${items.length}개` : "틀린 곳 없음"), "말투·표기 · 태그 · 배틀이 못 읽는 조각 (웹은 구문 DB 기준 — 게임이 최종 판단)", html, `<button class="b gold" id="lint-all"${can ? "" : " disabled"}>모두 고치기</button>`);
+  const all = $("lint-all"); if (all) all.addEventListener("click", () => { lintSet(LINT.fixAll(el.value)); lintOpen(id); });
+}
+function lintSet(t) { const el = $(LINT_T); if (!el) return; el.value = t; el.dispatchEvent(new Event("input", { bubbles: true })); const b = document.querySelector(`[data-lintfor="${LINT_T}"]`); if (b) lintPaint(b); }
+document.addEventListener("click", (e) => {
+  const b = e.target.closest && e.target.closest("[data-lintfor]"); if (b && !b.disabled) { lintOpen(b.dataset.lintfor); return; }
+  const f = e.target.closest && e.target.closest("[data-lfix]");
+  if (f && LINT_T && $(LINT_T)) { const it = LINT.check($(LINT_T).value)[+f.dataset.lfix]; if (it) { lintSet(LINT.fixOne($(LINT_T).value, it)); lintOpen(LINT_T); } }
+});
 // 빈칸 기호: ±N · 1/N · 0.n · 1.N · XX… · ○… · N (영어 글자 옆의 N 은 빼기)
 function slotToks(form) {
   const out = [];
