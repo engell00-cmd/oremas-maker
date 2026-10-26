@@ -181,6 +181,23 @@ select.ddsel option:disabled { color: #7b86b0; }
 .slots { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .slots input { width: 92px; padding: 6px 8px; font-size: 14px; }
 .mk-ok { color: var(--ok); } .mk-part { color: var(--part); } .mk-no { color: var(--no); } .mk-none { color: var(--sub); } .mk-rule { color: var(--rule); }
+/* 248-⑥ 트레이너 귀속: 포켓몬 동그라미 줄 (망켓몬 제작기 tparty 참고) · 소지 포켓몬 목록 */
+.tparty { display: flex; gap: 4px 6px; flex-wrap: wrap; flex-basis: 100%; order: 2; min-width: 0; }
+.tpm { display: grid; justify-items: center; gap: 2px; width: 54px; background: none; border: 0; color: var(--fg); cursor: pointer; padding: 2px 0; font: inherit; }
+.tpm .tpr { width: 40px; height: 40px; border-radius: 50%; padding: 3px; display: block; }
+.tpm .tpi { width: 100%; height: 100%; border-radius: 50%; background: var(--panel2); display: grid; place-items: center; font-size: 15px; }
+.tpm small { font-size: 11px; max-width: 54px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--sub); }
+.tpm.cur .tpi { box-shadow: inset 0 0 0 2px var(--gold); } .tpm.cur small { color: var(--gold); }
+.tpm.add .tpr { border: 1px dashed var(--line); padding: 2px; } .tpm.add .tpi { background: transparent; color: var(--neon); }
+.tpm.more { cursor: default; align-content: center; }
+details.tr-card > summary { flex-wrap: wrap; }
+details.tr-card > summary::after { order: 1; }
+.partybar { margin: -4px 0 10px; display: grid; gap: 2px; } .partybar .tparty { justify-content: flex-start; }
+#view-mon.fresh > .partybar { display: none; }
+.ownbox { border: 1px dashed var(--line); border-radius: 8px; padding: 8px; display: grid; gap: 6px; grid-template-columns: minmax(0, 1fr); }
+.own { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; align-items: center; }
+.own .no { color: var(--sub); font-size: 12px; font-variant-numeric: tabular-nums; margin-right: 6px; }
+details.tr-card.orphan > summary .trn { color: var(--sub); }
 /* 248-⑤ 구문 칩 (소분류별) · 조각 판정 */
 .pcs { display: flex; flex-wrap: wrap; gap: 6px; }
 .item.pc { width: auto; max-width: 100%; padding: 6px 9px; font-size: 13.5px; line-height: 1.35; border-radius: 16px; }
@@ -307,6 +324,7 @@ button.b.big { font-size: 19px; padding: 16px 14px; border-radius: 12px; width: 
       <p>여기서 포켓몬을 만들고, 마지막에 나오는 한 줄을 게임에 붙여넣으면 끝이에요.</p>
       <button class="b gold big" id="m-start-new">＋ 새 포켓몬 만들기</button>
       <button class="b pri resume" id="m-resume" hidden></button>
+      <button class="b ghost" id="m-boxlink" hidden></button>
       <ol class="steps">
         <li><span><b>이름 · 타입</b>을 정해요</span></li>
         <li><span><b>특성 · 기술</b>은 [찾기], <b>포텐셜</b>은 칸마다 [고르기]</span></li>
@@ -322,11 +340,12 @@ button.b.big { font-size: 19px; padding: 16px 14px; border-radius: 12px; width: 
       <div class="sh-n">페이지를 열 때마다 알아서 받아요. 페이지를 켜 둔 채 시트를 고쳤으면 눌러 주세요.</div>
     </div>
     <div class="nowbar"><button class="b sm ghost home" id="m-home">← 처음</button><span class="nm" id="m-now"></span><button class="b sm fold" id="m-fold">모두 접기</button><button class="b gold" id="m-new2">＋ 새 포켓몬</button></div>
+    <div id="m-party" class="partybar"></div>
     <details class="box" id="m-in">
       <summary><h2 class="sec">줄 읽어 오기</h2><span class="hint">게임·시트·생성기의 붙여넣기 한 줄</span></summary>
       <div class="inner">
         <textarea id="m-in-text" class="mono" rows="4" placeholder="이름;레벨;타입;…#포텐셜 이름;…#설명;…#칸 번호;…#전용 이름#전용 설명#기술;타입\…#"></textarea>
-        <div class="note">칸을 길게 눌러 붙여넣은 뒤 [읽기]. 지금 고치던 내용은 읽은 줄로 바뀌어요.</div>
+        <div class="note">칸을 길게 눌러 붙여넣은 뒤 [읽기]. 읽은 포켓몬은 새 칸으로 들어가요 (고치던 포켓몬은 보관함에 남음 · 같은 트레이너에 같은 이름이 있으면 그것을 바꿈).</div>
         <div class="row"><button class="b pri" id="m-in-read">읽기</button></div>
         <div class="msg" id="m-in-msg"></div>
       </div>
@@ -335,7 +354,7 @@ button.b.big { font-size: 19px; padding: 16px 14px; border-radius: 12px; width: 
     <details class="box" open id="m-basic">
       <summary><h2 class="sec">기본</h2><span class="hint" id="m-basic-hint"></span></summary>
       <div class="inner">
-        <label class="f">이름<input id="m-name" data-k="name" autocomplete="off" placeholder="예: 리자몽"></label>
+        <div class="g2"><label class="f">이름<input id="m-name" data-k="name" autocomplete="off" placeholder="예: 리자몽"></label><label class="f">트레이너 (주인)<select id="m-owner"></select></label></div>
         <div class="g2">
           <label class="f">레벨<input id="m-level" data-k="level" type="number" inputmode="numeric" min="1"></label>
           <label class="f">프라이드<input id="m-pride" data-k="pride" autocomplete="off" placeholder="예: C"></label>
@@ -922,9 +941,74 @@ if (String(S.monFrom || "").startsWith("예시:")) { S.mon = blankMon(); S.monFr
 if (String(S.trFrom || "").startsWith("예시:")) { S.tr = []; S.trFrom = ""; if (S.monTr) S.monTr = ""; }
 if (!S.monQ) S.monQ = { 지시: "C", 육성: S.monAA ? "AA" : "C", 통솔: "C" };   // M3 까지의 「육성 AA」 체크를 옮김
 delete S.monAA; if (S.monTr == null) S.monTr = "";
+// 248-⑥ 트레이너 귀속 (사용자 10-26 13:42 「새 포켓몬을 만들려면 이전 데이터를 지워야 … 트레이너에게 귀속」 · 결정 13:4x 「트레이너 카드 안 목록」「트레이너 없음 묶음」)
+//   망켓몬 제작기처럼: 포켓몬 보관함 S.box = [{id, tr(트레이너 이름, "" = 트레이너 없음), mon, from, q}] · 지금 고치는 것 = S.cur (S.mon · S.monTr · S.monFrom · S.monQ 는 그 칸의 거울 — 예전 판과 같은 자리)
+if (!Array.isArray(S.box)) S.box = [];
+if (!S.cur || !S.box.some((e) => e.id === S.cur)) { const e0 = { id: newMonId() }; S.box.push(e0); S.cur = e0.id; }
+syncCur();
+for (const e of S.box) normMon(e.mon);
 S.monHome = true; S.trHome = true;   // 페이지를 열면 늘 처음 화면 (고치던 것은 [이어서 고치기]) — 사용자 10-21
 let saveT = 0;
-function save() { clearTimeout(saveT); saveT = setTimeout(() => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }, 300); }
+function save() { syncCur(); clearTimeout(saveT); saveT = setTimeout(() => { syncCur(); try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }, 300); }
+function newMonId() { return "m" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+function curEntry() { return (S.box || []).find((e) => e.id === S.cur) || null; }
+function syncCur() { const e = curEntry(); if (!e) return; e.mon = S.mon; e.tr = S.monTr || ""; e.from = S.monFrom || ""; e.q = S.monQ; }
+function normMon(m) { if (!m) return; if (!Array.isArray(m.forms)) m.forms = []; while (Array.isArray(m.pots) && m.pots.length < SLOTS.length) m.pots.push({ name: "", desc: "" }); }
+const boxName = (e) => String((e && e.mon && e.mon.name) || "").trim();
+const boxShown = (e) => e.id === S.cur || !isBlankMon(e.mon);
+function pruneBox() { S.box = S.box.filter(boxShown); }
+// 트레이너 이름 → 그 트레이너의 포켓몬 ("" = 트레이너 없음 + 이름이 트레이너 목록에 없는 것)
+function trMons(name) { const names = new Set(S.tr.map((t) => t.name)); return S.box.filter((e) => boxShown(e) && (name ? (e.tr || "") === name : !names.has(e.tr || ""))); }
+function switchMon(id) {
+  syncCur(); const e = S.box.find((x) => x.id === id); if (!e) return;
+  S.cur = id; pruneBox(); normMon(e.mon);
+  S.mon = e.mon; S.monTr = e.tr || ""; S.monFrom = e.from || ""; S.monQ = e.q || { 지시: "C", 육성: "C", 통솔: "C" };
+  S.monStarted = true; S.monHome = false; monMsg("");
+  setTab("mon"); renderMon(); save(); window.scrollTo({ top: 0 });
+}
+// 새 칸 (지금 것이 비어 있으면 그 칸을 다시 씀)
+function addMonEntry(tr) {
+  syncCur(); const cur = curEntry();
+  if (cur && isBlankMon(cur.mon)) { cur.tr = tr; S.monTr = tr; return cur; }
+  const e = { id: newMonId(), tr, mon: blankMon(), from: "", q: Object.assign({}, S.monQ) };
+  S.box.push(e); S.cur = e.id; S.mon = e.mon; S.monTr = tr; pruneBox(); return e;
+}
+// 읽어 온 포켓몬 넣기: 같은 트레이너에 같은 이름이 있으면 그것을 바꿈 · 아니면 지금 칸이 비었으면 거기 · 아니면 새 칸
+function takeMon(data, from, tr) {
+  syncCur(); if (tr == null) tr = S.monTr || "";
+  const nm = String(data.name || "").trim();
+  const same = S.box.find((e) => nm && boxName(e) === nm && (e.tr || "") === tr);
+  let e;
+  if (same) { e = same; S.cur = e.id; if (Array.isArray(e.mon.forms) && e.mon.forms.length && !(data.forms || []).length) data.forms = e.mon.forms; }   // 게임처럼: 같은 포켓몬을 다시 붙여넣어도 폼은 그대로
+  else e = addMonEntry(tr);
+  normMon(data); e.mon = data; e.tr = tr; e.from = from;
+  S.mon = data; S.monTr = tr; S.monFrom = from; if (e.q) S.monQ = e.q;
+  S.monStarted = true; S.monHome = false; pruneBox();
+  return !!same;
+}
+// 포켓몬 동그라미 (망켓몬 제작기 tparty 처럼 — 타입 1·2 색 테두리 · 첫 글자 · 이름)
+function monIcon(e, extra) {
+  const m = e.mon, a = m.types[0] ? tyCol(m.types[0]) : "var(--line)", b = m.types[1] ? tyCol(m.types[1]) : a, nm = boxName(e);
+  return `<button type="button" class="tpm${e.id === S.cur ? " cur" : ""}${extra || ""}" data-mopen="${esc(e.id)}" title="${esc((nm || "(이름 없음)") + " · " + m.types.filter(Boolean).join("/"))}"><span class="tpr" style="background:conic-gradient(${a} 0 50%, ${b} 50% 100%)"><span class="tpi"><b>${esc([...(nm || "?")][0])}</b></span></span><small>${esc(nm || "(이름 없음)")}</small></button>`;
+}
+function partyStrip(list, addTr) {
+  return `<div class="tparty">${list.slice(0, 8).map((e) => monIcon(e)).join("")}${list.length > 8 ? `<span class="tpm more"><small>+${list.length - 8}</small></span>` : ""}${addTr != null ? `<button type="button" class="tpm add" data-mnew="${esc(addTr)}" title="이 트레이너의 새 포켓몬"><span class="tpr"><span class="tpi"><b>＋</b></span></span><small>새 포켓몬</small></button>` : ""}</div>`;
+}
+function ownBox(list, tr, label) {
+  return `<div class="ownbox"><div class="grp-h">${esc(label || "소지 포켓몬")} <span>${list.length}마리 · 누르면 포켓몬 탭에서 고쳐요</span></div>
+    ${list.map((e, i) => `<div class="own"><button class="item own-r${e.id === S.cur ? " sel" : ""}" data-mopen="${esc(e.id)}"><span class="no">No.${String(i + 1).padStart(3, "0")}</span><b>${esc(boxName(e) || "(이름 없음)")}</b> ${tyChips(e.mon.types.filter(Boolean).join("/"))}<span class="d">${esc([e.mon.pots[0] && e.mon.pots[0].name, e.mon.level ? "Lv." + e.mon.level : "", tr === "" && e.tr ? "빠진 트레이너 「" + e.tr + "」" : ""].filter(Boolean).join(" · "))}</span></button><button class="b sm ghost" data-mdel="${esc(e.id)}">빼기</button></div>`).join("")}
+    <div class="row"><button class="b sm pri" data-mnew="${esc(tr)}">＋ 새 포켓몬${tr ? "" : " (트레이너 없음)"}</button></div></div>`;
+}
+function delMon(id) {
+  const i = S.box.findIndex((e) => e.id === id); if (i < 0) return;
+  const was = S.box[i]; S.box.splice(i, 1);
+  if (id === S.cur) {   // 지운 것이 지금 고치던 포켓몬 → 같은 트레이너의 다른 포켓몬, 없으면 빈 칸
+    const next = S.box.find((e) => (e.tr || "") === (was.tr || "")) || S.box[0];
+    if (next) { S.cur = next.id; S.mon = next.mon; S.monTr = next.tr || ""; S.monFrom = next.from || ""; }
+    else { const e = { id: newMonId(), tr: was.tr || "", mon: blankMon(), from: "", q: S.monQ }; S.box.push(e); S.cur = e.id; S.mon = e.mon; S.monTr = e.tr; S.monFrom = ""; }
+  }
+  toast("『" + (boxName(was) || "이름 없음") + "』을 뺐어요"); save();
+}
 
 function toast(t) { const el = $("toast"); el.textContent = t; el.classList.add("show"); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove("show"), 1800); }
 async function copyText(text, area) {
@@ -946,6 +1030,7 @@ function setTab(t) {
   for (const b of document.querySelectorAll(".tabs button")) b.setAttribute("aria-selected", String(b.dataset.tab === t));
   $("view-mon").hidden = t !== "mon"; $("view-tr").hidden = t !== "tr";
   if (t === "mon" && S.mon) renderMon();
+  if (t === "tr") { syncCur(); renderTr(); }   // 248-⑥: 소지 포켓몬 목록을 새로
   refreshFresh();
   window.scrollTo(0, 0); autosizeAll();
 }
@@ -1145,9 +1230,9 @@ $("m-in-read").addEventListener("click", () => {
   const r = parseMon(lines[0]);
   if (!r.ok) { monMsg('<span class="err">읽지 못했어요: ' + esc(r.error) + "</span>"); return; }
   if (r.data.name === S.mon.name && Array.isArray(S.mon.forms)) r.data.forms = S.mon.forms;   // 게임처럼: 같은 포켓몬을 다시 붙여넣어도 폼은 그대로
-  S.mon = r.data; S.monFrom = "읽어 온 줄: 「" + r.data.name + "」"; S.monStarted = true; S.monHome = false;
+  const same = takeMon(r.data, "읽어 온 줄: 「" + r.data.name + "」");   // 248-⑥: 새 칸으로 (같은 트레이너 같은 이름이면 그것을 바꿈)
   renderMon();
-  monMsg(`<span class="okc">「${esc(r.data.name)}」을 읽었어요.</span>` + (lines.length > 1 ? `<div class="warn">줄이 ${lines.length}개라 첫 줄만 읽었어요.</div>` : "") + (r.warns.length ? '<ul class="warn">' + r.warns.map((w) => "<li>" + esc(w) + "</li>").join("") + "</ul>" : ""));
+  monMsg(`<span class="okc">「${esc(r.data.name)}」을 읽었어요${same ? " (보관함의 같은 포켓몬을 바꿨어요)" : ""}.</span>` + (lines.length > 1 ? `<div class="warn">줄이 ${lines.length}개라 첫 줄만 읽었어요.</div>` : "") + (r.warns.length ? '<ul class="warn">' + r.warns.map((w) => "<li>" + esc(w) + "</li>").join("") + "</ul>" : ""));
 });
 // ── 처음 화면 · 새 포켓몬
 // 새 포켓몬 기본값 (사용자 10-19 22:01 「역할은 디폴트를 바닐라 · 분류는 디폴트를 현대종」) — 기본값만 있는 칸은 「빈 것」으로 봄
@@ -1165,24 +1250,23 @@ function refreshFresh() {
   $("view-mon").classList.toggle("fresh", fresh);
   $("dock").classList.toggle("fresh", fresh && S.tab === "mon");
   $("m-now").innerHTML = S.mon.name.trim() ? `<b>『${esc(S.mon.name)}』</b>` : "(이름 없음)";   // 막대에 [모두 접기]가 들어가서 이름만
+  const own = S.monTr && S.tr.some((x) => x.name === S.monTr) ? S.monTr : "", sib = trMons(own);   // 248-⑥ 같은 트레이너 포켓몬 줄
+  $("m-party").innerHTML = `<div class="grp-h">${own ? "「" + esc(own) + "」의 포켓몬" : "트레이너 없는 포켓몬"} <span>${sib.length}마리 · 눌러서 바꿔 가며 고치기</span></div>` + partyStrip(sib, own);
+  const nAll = S.box.filter((e) => !isBlankMon(e.mon)).length;
+  $("m-boxlink").hidden = !nAll; $("m-boxlink").textContent = `📦 만든 포켓몬 ${nAll}마리 — 트레이너별로 보기`;
 }
-function startNew() {
-  S.mon = applyMonDefaults(blankMon()); S.monFrom = "새 포켓몬"; S.monStarted = true; S.monHome = false; S.mon.forms = [];
+function startNew(tr) {   // 248-⑥: 예전 포켓몬은 보관함에 남고 새 칸 (트레이너 = 지금 고르던 트레이너)
+  if (tr == null) tr = S.monTr || "";
+  const e = addMonEntry(tr);
+  S.mon = applyMonDefaults(blankMon()); S.monFrom = "새 포켓몬"; S.monStarted = true; S.monHome = false; S.mon.forms = []; e.mon = S.mon;
   for (const d of document.querySelectorAll("#view-mon > details")) d.open = false;
   $("m-basic").open = true; monMsg("");
   renderMon(); save();
   window.scrollTo({ top: 0, behavior: "smooth" });
   setTimeout(() => $("m-name").focus({ preventScroll: true }), 300);
-  toast("새 포켓몬 — 이름부터 정해요");
+  toast((tr ? "「" + tr + "」의 " : "") + "새 포켓몬 — 이름부터 정해요");
 }
-let heroArm = 0;
-$("m-start-new").addEventListener("click", () => {
-  const b = $("m-start-new");
-  if (isBlankMon(S.mon) || Date.now() < heroArm) { heroArm = 0; b.textContent = "＋ 새 포켓몬 만들기"; return startNew(); }
-  heroArm = Date.now() + 3000; b.textContent = "한 번 더 = 고치던 것 비우고 새로";
-  toast("고치던 포켓몬이 지워져요 — 남기려면 [이어서 고치기]");
-  setTimeout(() => { if (Date.now() >= heroArm) b.textContent = "＋ 새 포켓몬 만들기"; }, 3100);
-});
+$("m-start-new").addEventListener("click", () => startNew());   // 248-⑥: 지우지 않음 (고치던 것은 보관함에)
 $("m-resume").addEventListener("click", () => { S.monHome = false; S.monStarted = true; refreshFresh(); save(); window.scrollTo(0, 0); autosizeAll(); });
 const monFoldEls = () => [...document.querySelectorAll("#view-mon > details.box:not(#m-in):not(#m-out), #m-pot-list details.slot, #m-form-list details.fcard")];
 function monFoldLabel() { $("m-fold").textContent = monFoldEls().some((d) => d.open) ? "모두 접기" : "모두 펴기"; }
@@ -1197,14 +1281,9 @@ $("m-fold").addEventListener("click", () => {
 $("m-home").addEventListener("click", () => { S.monHome = true; refreshFresh(); save(); window.scrollTo({ top: 0, behavior: "smooth" }); });
 $("m-start-paste").addEventListener("click", () => { S.monStarted = true; S.monHome = false; refreshFresh(); $("m-in").open = true; $("m-in").scrollIntoView({ behavior: "smooth", block: "start" }); setTimeout(() => $("m-in-text").focus(), 300); });
 // 고치던 포켓몬이 있으면 두 번 눌러야 비움 (실수 방지)
-let newArm = 0;
-$("m-new2").addEventListener("click", () => {
-  const b = $("m-new2");
-  if (isBlankMon(S.mon) || Date.now() < newArm) { newArm = 0; b.textContent = "＋ 새 포켓몬"; return startNew(); }
-  newArm = Date.now() + 3000; b.textContent = "한 번 더 = 지금 것 비우기";
-  toast("지금 포켓몬이 지워져요 — 필요하면 먼저 [줄 복사]");
-  setTimeout(() => { if (Date.now() >= newArm) b.textContent = "＋ 새 포켓몬"; }, 3100);
-});
+$("m-new2").addEventListener("click", () => startNew());
+$("m-party").addEventListener("click", (e) => { const b = e.target.closest("[data-mopen],[data-mnew]"); if (!b) return; if (b.dataset.mnew != null) startNew(b.dataset.mnew); else if (b.dataset.mopen !== S.cur) { switchMon(b.dataset.mopen); toast("『" + (S.mon.name || "이름 없음") + "』"); } });
+$("m-boxlink").addEventListener("click", () => { S.trHome = !S.tr.length; setTab("tr"); renderTr(); window.scrollTo(0, 0); });
 $("m-pot-list").addEventListener("click", (e) => {
   const b = e.target.closest("button"); if (!b) return;
   if (b.dataset.macro != null) openPotMacro(+b.dataset.macro);
@@ -1337,6 +1416,7 @@ $("m-qgrid").innerHTML = ["지시", "육성", "통솔"].map((k) => `<label class
 function renderTrq() {
   const t = monTrainer(), q = monQ();
   $("m-trsel").innerHTML = '<option value="">(직접 정하기)</option>' + S.tr.map((x) => `<option${x.name === S.monTr ? " selected" : ""}>${esc(x.name)}</option>`).join("") + (S.monTr && !t ? `<option selected value="${esc(S.monTr)}">${esc(S.monTr)} (트레이너 탭에 없음)</option>` : "");
+  $("m-owner").innerHTML = '<option value="">트레이너 없음</option>' + S.tr.map((x) => `<option${x.name === S.monTr ? " selected" : ""}>${esc(x.name)}</option>`).join("") + (S.monTr && !t ? `<option selected value="${esc(S.monTr)}">${esc(S.monTr)} (없음)</option>` : "");   // 248-⑥ 같은 값 (기본 칸에서 바로)
   for (const k of ["지시", "육성", "통솔"]) { const el = $("m-q-" + k); el.value = q[k]; el.disabled = !!t; }
   const g = expGrants(), w = potRuleWarns();
   const rows = [
@@ -1381,6 +1461,7 @@ function applyBreedAuto() {
 }
 function qualityChanged() { const d = applyBreedAuto(); const ag = autoExpGrant(); if (ag) d.push(ag); renderMon(); if (d.length) toast("자동: " + d.join(" · ")); }
 $("m-trsel").addEventListener("change", () => { S.monTr = $("m-trsel").value; qualityChanged(); });
+$("m-owner").addEventListener("change", () => { S.monTr = $("m-owner").value; qualityChanged(); toast(S.monTr ? "「" + S.monTr + "」의 포켓몬으로 옮겼어요" : "트레이너 없음으로 옮겼어요"); });
 $("m-qgrid").addEventListener("change", (e) => { const k = e.target.dataset.q; if (!k) return; S.monQ = Object.assign(monQ(), S.monQ || {}); S.monQ[k] = e.target.value; qualityChanged(); });
 $("m-trq-fix").addEventListener("click", () => { const d = applyBreedAuto(); renderMon(); toast(d.length ? "맞췄어요: " + d.join(" · ") : "표 글 그대로가 아닌 칸은 손으로 고쳐 주세요"); });
 // ───────── M5: 구글 시트 「테이블(싱글)」 AQ:AT 동조 (사용자 10-19 20:48) ─────────
@@ -1730,7 +1811,7 @@ function trFoldLabel() { $("t-fold").textContent = S.tr.some((t) => t.open !== f
 function renderTr() {
   $("t-list").innerHTML = S.tr.length ? S.tr.map((t, ti) => `
     <details class="tr-card" data-ti="${ti}"${t.open === false ? "" : " open"}>
-      <summary><b class="trn">${esc(t.name.trim() || "이름 없음")}</b><span class="trq">${esc(trGrades(t.q))}</span><span class="hint trh">고유 ${t.uniq.filter((u) => String(u.name).trim()).length}</span></summary>
+      <summary><b class="trn">${esc(t.name.trim() || "이름 없음")}</b><span class="trq">${esc(trGrades(t.q))}</span><span class="hint trh">고유 ${t.uniq.filter((u) => String(u.name).trim()).length} · 포켓몬 ${trMons(t.name).length}</span>${partyStrip(trMons(t.name), t.name)}</summary>
       <div class="trb">
       <div class="tt"><label class="f" style="flex:1">이름<input data-tk="name" value="${esc(t.name)}" autocomplete="off"></label><button class="b sm ghost" data-trdel="${ti}" style="align-self:end">이 트레이너 빼기</button></div>
       <div class="g2" style="grid-template-columns:repeat(4,1fr)">${QUALITIES.map((q) => `<label class="f">${q}<select data-tq="${q}">${gradeOpts(t.q[q] || "C")}</select></label>`).join("")}</div>
@@ -1738,6 +1819,7 @@ function renderTr() {
       <div class="ptbox"><div class="grp-h">PT 포텐셜 — 이 트레이너의 포켓몬 전원에게</div>
         ${[0, 1].map((k) => { const p = (t.pt || [])[k] || { name: "", desc: "" }; return `<label class="f">PT ${k + 1} 이름<input data-tpt="${k}.name" value="${esc(p.name)}" autocomplete="off"></label><label class="f">PT ${k + 1} 효과<textarea data-tpt="${k}.desc" rows="2">${esc(p.desc)}</textarea></label>`; }).join("")}
         <div class="note">포켓몬 탭에서 이 트레이너를 고르면 PT 1·2 칸에 그대로 들어가요. 게임 트레이너 줄에는 안 들어가요 (게임은 PT 를 포켓몬마다 가짐).</div></div>
+      ${ownBox(trMons(t.name), t.name)}
       ${t.uniq.map((u, ui) => `
       <div class="uq">
         <label class="f">고유 ${ui + 1} 이름<input data-uk="${ui}.name" value="${esc(u.name)}" autocomplete="off"></label>
@@ -1747,10 +1829,12 @@ function renderTr() {
       <div class="row"><button class="b sm" data-uadd>＋ 고유</button></div>
       </div>
     </details>`).join("") : "";
+  const orph = trMons(""), orphHtml = orph.length ? `<details class="tr-card orphan" data-ti="-1" open><summary><b class="trn">트레이너 없음</b><span class="hint">포켓몬 ${orph.length}</span>${partyStrip(orph, "")}</summary><div class="trb">${ownBox(orph, "", "트레이너 없는 포켓몬")}<div class="note">포켓몬 탭 「이 포켓몬의 트레이너」에서 트레이너를 고르면 그 트레이너 카드로 옮겨 가요.</div></div></details>` : "";
+  $("t-list").innerHTML += orphHtml;
   const home = !!S.trHome || !S.tr.length;
   if (home) $("t-list").innerHTML = '<div class="hero"><h2>트레이너 만들기</h2><p>자질(지시·육성·통솔·능력)과 고유 포텐셜을 정해서 게임에 붙여넣어요.</p><button class="b gold big" data-tstart>＋ 새 트레이너 만들기</button>'
     + (S.tr.length ? `<button class="b pri resume" data-tresume>이어서 고치기 — ${S.tr.length}명 (${esc(S.tr.map((t) => t.name.trim() || "이름 없음").join(", "))})</button>` : "")
-    + '<p>이미 만든 줄이 있으면 위 [줄 읽어 오기]</p></div>';
+    + '<p>이미 만든 줄이 있으면 위 [줄 읽어 오기]</p></div>' + orphHtml;
   $("t-nowbar").hidden = home; $("t-now").innerHTML = `트레이너 <b>${S.tr.length}명</b>`;
   $("t-add").parentElement.hidden = home; $("t-out").hidden = home; trFoldLabel();
   updateTrOut(); autosizeAll();
@@ -1771,7 +1855,7 @@ function updateTrOut() {
 $("t-list").addEventListener("input", (e) => {
   const card = e.target.closest(".tr-card"); if (!card) return;
   const t = S.tr[+card.dataset.ti], el = e.target;
-  if (el.dataset.tk) { if (S.monTr && S.monTr === t.name) S.monTr = el.value; t.name = el.value; card.querySelector(".trn").textContent = t.name.trim() || "이름 없음"; }
+  if (el.dataset.tk) { if (S.monTr && S.monTr === t.name) S.monTr = el.value; for (const m of S.box) if ((m.tr || "") === t.name && m.id !== S.cur) m.tr = el.value; t.name = el.value; card.querySelector(".trn").textContent = t.name.trim() || "이름 없음"; }
   if (el.dataset.tpt) { const [k, f] = el.dataset.tpt.split("."); t.pt = t.pt || [{ name: "", desc: "" }, { name: "", desc: "" }]; t.pt[+k][f] = el.value; save(); }
   if (el.dataset.tq) { t.q[el.dataset.tq] = el.value; card.querySelector("[data-qt]").textContent = qualityType(t.q); card.querySelector(".trq").textContent = trGrades(t.q); }
   if (el.dataset.uk) { const [ui, f] = el.dataset.uk.split("."); t.uniq[+ui][f] = el.value; }
@@ -1781,10 +1865,14 @@ $("t-list").addEventListener("input", (e) => {
 $("t-list").addEventListener("change", (e) => { if (e.target.tagName === "SELECT") e.target.dispatchEvent(new Event("input", { bubbles: true })); });
 $("t-list").addEventListener("click", (e) => {
   const b = e.target.closest("button"); if (!b) return;
+  // 248-⑥ 소지 포켓몬: 고치기 · 새로 · 빼기 (카드 머리 안 단추는 접기·펴기를 막음)
+  if (b.dataset.mopen != null) { e.preventDefault(); switchMon(b.dataset.mopen); return; }
+  if (b.dataset.mnew != null) { e.preventDefault(); startNew(b.dataset.mnew); setTab("mon"); return; }
+  if (b.dataset.mdel != null) { if (b.dataset.armed) { delMon(b.dataset.mdel); renderTr(); } else { b.dataset.armed = "1"; b.textContent = "한 번 더 = 빼기"; } return; }
   if (b.dataset.tstart != null) { S.trHome = false; $("t-add").click(); const c = $("t-list").lastElementChild && $("t-list").lastElementChild.querySelector('[data-tk="name"]'); if (c) setTimeout(() => c.focus(), 250); return; }
   if (b.dataset.tresume != null) { S.trHome = false; renderTr(); window.scrollTo(0, 0); return; }
   const card = b.closest(".tr-card"), ti = +card.dataset.ti, t = S.tr[ti];
-  if (b.dataset.trdel != null) { if (b.dataset.armed) { S.tr.splice(ti, 1); renderTr(); } else { b.dataset.armed = "1"; b.textContent = "한 번 더 누르면 빠져요"; } }
+  if (b.dataset.trdel != null) { if (b.dataset.armed) { S.tr.splice(ti, 1); for (const m of S.box) if ((m.tr || "") === t.name) m.tr = ""; if (S.monTr === t.name) S.monTr = ""; save(); renderTr(); } else { b.dataset.armed = "1"; b.textContent = "한 번 더 누르면 빠져요"; } }
   if (b.dataset.uadd != null) { t.uniq.push({ name: "", desc: "" }); renderTr(); }
   if (b.dataset.udel != null) { t.uniq.splice(+b.dataset.udel, 1); renderTr(); }
   if (b.dataset.umac != null) { const ui = +b.dataset.umac; openMacro($(`t-${ti}-u-${ui}`), (t.name || "트레이너") + " · 고유 " + (t.uniq[ui].name || ui + 1)); }
@@ -2346,8 +2434,7 @@ function fromGame() {
   if (m) {
     const r = parseMon(m.split("\n")[0].trim());
     if (!r.ok) { toast("게임에서 보낸 포켓몬을 못 읽었어요: " + r.error); return; }
-    S.mon = r.data; S.monFrom = "게임에서 받음: 「" + r.data.name + "」"; S.monStarted = true; S.monHome = false;
-    if (trName) S.monTr = trName;
+    takeMon(r.data, "게임에서 받음: 「" + r.data.name + "」", trName || S.monTr || "");   // 248-⑥
     save(); setTab("mon"); renderMon();
     toast("게임에서 「" + r.data.name + "」을 받아 왔어요 — 고친 뒤 [게임에 넣기]");
   } else if (trName) {
@@ -2363,7 +2450,7 @@ loadTableCache(); loadPhrCache();
 renderMon(); renderTr(); setTab(S.tab === "tr" ? "tr" : "mon"); monFoldLabel();
 fromGame(); window.addEventListener("hashchange", fromGame);
 syncSheet(false); syncPhrases(false);
-window.__oremas = { parseMon, buildMon, parseTrainers, buildTrainer, qualityType, lint, sortTags, addTag, defaultsFrom, fillForm, compose, slotToks, phrasesFromRows, parseCSV, tableFromRows, autoExpGrant, sansikFill, sansikParse, SANS_TB, get TB() { return TB; }, monQ, expOk, tacOk, breedAA, privOk, potRuleWarns };
+window.__oremas = { parseMon, buildMon, parseTrainers, buildTrainer, qualityType, lint, sortTags, addTag, defaultsFrom, fillForm, compose, slotToks, phrasesFromRows, parseCSV, tableFromRows, autoExpGrant, sansikFill, sansikParse, SANS_TB, get TB() { return TB; }, get S() { return S; }, switchMon, startNew, monQ, expOk, tacOk, breedAA, privOk, potRuleWarns };
 </script>
 
 </body></html>
