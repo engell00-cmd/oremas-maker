@@ -1731,7 +1731,8 @@ const FC = (() => {
 // 게임 scripts/webcheck/web_check.gd 를 Godot 웹으로 내보낸 것(checker/ 폴더 — 「웹 해석기 올리기.bat」가 만들어 GitHub 에 올림)
 // 받으면(약 10MB, 한 번) 조각 판정 · 교정의 「배틀이 못 읽음」이 게임과 글자까지 같은 판정이 됨 (? 가 없어짐). 안 받았을 땐 예전처럼 구문 DB 기준
 const GAME = (() => {
-  const DIR = "checker/", KEY = "oremas_gamechk";
+  // 해석기 파일 자리: GitHub Pages(·시험용 localhost)에선 옆 폴더, 다른 곳(netlify · 아티팩트)에 올린 판은 GitHub 것을 받음 (Pages 는 CORS 허용)
+  const DIR = window.OREMAS_CHECKER_DIR || (/^(engell00-cmd\.github\.io|127\.0\.0\.1|localhost)$/.test(location.hostname) ? "checker/" : "https://engell00-cmd.github.io/oremas-maker/mobile/checker/"), KEY = "oremas_gamechk";
   let state = "idle", info = null, prog = "", err = "", listeners = [];
   const notify = () => { for (const f of listeners) try { f(); } catch (e) {} };
   function call(fn, text) { window.__oremasOut = ""; window[fn](String(text)); const o = window.__oremasOut; return o ? JSON.parse(o) : null; }
