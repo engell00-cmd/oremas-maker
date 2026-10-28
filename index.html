@@ -162,8 +162,8 @@ table.col tr.open td{background:var(--surface2)}
       <div class="field" id="f-tier"><label for="tier">심도</label>
         <div class="row"><select id="tier" style="width:auto"><option value="1">심도 1 (Lv10~30)</option><option value="2">심도 2 (Lv40~100)</option><option value="3" selected>심도 3 (Lv110~150)</option><option value="4">심도 4 (Lv150~280)</option></select>
         <label style="display:flex;gap:4px;align-items:center;font-size:13px"><input type="checkbox" id="boss"> 주인</label></div></div>
-      <div class="field" id="f-power" hidden><label for="power">세기</label>
-        <select id="power"><option value="3">보통 (합 440~520)</option><option value="4">강함 (합 500~570)</option><option value="5">에이스 (합 540~610)</option></select></div>
+      <div class="field" id="f-power" hidden><label for="pride">프라이드 계단</label>
+        <select id="pride"><option value="">랜덤</option></select></div>
       <div class="field" id="f-grow" hidden><label for="grow">육성</label>
         <select id="grow"><option value="A">A 이상 · 4계제</option><option value="B" selected>B 이하 · 3계제</option></select></div>
       <div class="field" id="f-zksrc" hidden><label for="zksrc">속별</label>
@@ -679,6 +679,131 @@ function rankOf(v){v=+v;if(v>=200)return'S';for(const [n,lo,hi] of [['AAA',170,1
 function norm(s){return s.replace(/\s/g,'')}
 function toast(t){const e=$('toast');e.textContent=t;e.classList.add('on');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('on'),1600)}
 
+// ───────── 10-28 종족치 분배 = 프라이드 계단 (G9) ─────────
+// 망령 「망켓몬 제작기」 10-25 규칙을 따라 함. 슬라임 결정 10-28: 계단 먼저 고르고 분배 · 트레이너 + 야생 심도 3~4 · 특성 TO 는 뺌
+// 표 = 시트 「오레마스 프로젝트_데이터」 「프라이드 규칙」 탭 (게임 · 휴대폰 편집 웹과 같은 표) — 열 때 받고, 못 받으면 아래 넣어 둔 판 (10-28 10:2x)
+// 계산 종족치 = 원래 종족치 합 + 하한분(공격·특공·스피드, 선공 하한) + 내구 할증 + HP 할증 + 화력·스피드 할증 − 쌍두 할인 → 그 계단 상한 안
+const PRD_BUILT_AT='10-28 13:4x';
+function prdDefault(){return {steps:[['C',480,40,1,true],['C+',510,43,1.5,true],['B',540,45,2,true],['B+',570,48,2.5,true],['A',600,50,3,true],['A+',650,54,4,true],['S',9999,58,4.5,false]],
+ lead:{E:8,D:8,C:8,'B-':9,B:10,A:12,AA:14,AAA:16,S:18},realMin:400,absMin:31,opp:0.4,oldLow:0.5,
+ bulk:[85,105,0.5,0.75],hp:[95,120,0.5,0.75],fs:[105,120,0.5,1,90,140],dual:[90,120,1],
+ prio:{pow:50,on:[60,70,85],cond:[55,60,70]},prioAb:{'짓궂은마음':60,'질풍날개':60},
+ condMv:['기선제압','속이기','만나자마자','기습','질풍신뢰']}}
+let PRD=prdDefault(), PRD_SRC={kind:'built',at:PRD_BUILT_AT,err:''};
+const PRD_K=['hp','atk','def','spa','spd','spe'], PRD_KEY='oremas-maker-pride-v1', PRD_TAB='프라이드 규칙';
+// 시트 줄 → 표 (구분 · 키 · 값 · 값2 · 값3 · 값4). 모르는 줄은 넘김, 숫자가 아니면 넣어 둔 값
+function prdFromRows(rows){const P=prdDefault(),num=(x,d)=>{const v=parseFloat(String(x??'').replace(/,/g,''));return isNaN(v)?d:v};const steps=[];const lead={};
+  for(const r of rows){const g=String(r[0]??'').trim(),k=String(r[1]??'').trim(),v=r.slice(2,6);if(!g||!k)continue;
+    if(g==='계단'){const cap=num(v[0],NaN);if(isNaN(cap))continue;steps.push([k,cap,num(v[1],40),num(v[2],0),!/^X$/i.test(String(v[3]??'').trim())])}
+    else if(g==='통솔점'){const x=num(v[0],NaN);if(!isNaN(x))lead[k]=x}
+    else if(g==='상수'){if(k==='실제 합 하한')P.realMin=num(v[0],P.realMin);else if(k==='절대 하한')P.absMin=num(v[0],P.absMin);else if(/반대쪽 공격/.test(k))P.opp=num(v[0],P.opp);else if(/올드 타입/.test(k))P.oldLow=num(v[0],P.oldLow)}
+    else if(g==='할증'){const o=k==='내구'?P.bulk:k==='HP'?P.hp:k==='화력'?P.fs:null;if(o){for(let i=0;i<4;i++)o[i]=num(v[i],o[i])}else if(k==='스피드 비율'){P.fs[4]=num(v[0],P.fs[4]);P.fs[5]=num(v[1],P.fs[5])}}
+    else if(g==='할인'&&k==='쌍두'){for(let i=0;i<3;i++)P.dual[i]=num(v[i],P.dual[i])}
+    else if(g==='선공 하한'){if(k==='상시'||k==='조건부'){const o=k==='상시'?P.prio.on:P.prio.cond;for(let i=0;i<3;i++)o[i]=num(v[i],o[i])}else if(k==='기준 위력')P.prio.pow=num(v[0],P.prio.pow);
+      else if(k==='조건부 기술')P.condMv=String(v[0]??'').split(/[,，]/).map(s=>s.trim()).filter(Boolean);
+      else if(k==='특성'){P.prioAb={};for(const s of String(v[0]??'').split(/[,，]/)){const [n,x]=s.split(/[:：]/).map(t=>t&&t.trim());if(n)P.prioAb[n]=num(x,60)}}}}
+  if(steps.length<2)throw new Error('「계단」 줄이 너무 적어요 ('+steps.length+')');
+  steps.sort((a,b)=>a[1]-b[1]);P.steps=steps;if(Object.keys(lead).length)P.lead=lead;return P}
+const prdOrig=()=>PRD.steps.filter(s=>s[4]);   // 오리지널이 쓸 수 있는 계단
+const prdTwo=(x,o)=>o[2]*Math.max(0,Math.min(x,o[1])-o[0])+o[3]*Math.max(0,x-o[1]);
+const prdStep=lab=>PRD.steps.find(s=>s[0]===lab)||null;
+const prdLo=lab=>{const i=PRD.steps.findIndex(s=>s[0]===lab);return i>0?PRD.steps[i-1][1]:PRD.steps[0][1]-25};
+const prdTier=lab=>{const L=prdOrig().map(s=>s[0]),i=Math.max(0,L.indexOf(lab));return i<L.length/3?3:i<L.length*2/3?4:5};   // 기술 위력 상한 등 예전 「세기」 자리 (낮은 ⅓ 보통 · 가운데 강함 · 높은 ⅓ 에이스)
+const prdUp=(lab,n)=>{const L=prdOrig().map(s=>s[0]),i=L.indexOf(lab);return L[Math.max(0,Math.min(L.length-1,i+n))]};
+const prdN=x=>String(Math.round(x*10)/10);
+// 어느 계단으로 만들지: 트레이너 = 고른 것(빈칸 = 랜덤) · 야생 심도 3 = 아래 셋 (C~B) · 심도 4 = 그 위 둘 (B+~A) · 주인 = 한 계단 위 · 심도 1~2 = 예전 방식(빈칸)
+function prdPick(f){const L=prdOrig().map(s=>s[0]);
+  if(f.wild){if(f.tier<3)return '';const s=f.tier===3?R(L.slice(0,3)):R(L.slice(3,5).length?L.slice(3,5):L.slice(-1));return f.boss?prdUp(s,1):s}
+  return f.pride&&L.includes(f.pride)?f.pride:R(L);
+}
+// 포텐셜 글이 자기 기술 우선도를 올리는지 (게임 pride_rule.gd own_prio_up 과 같음 — 10-28 13:4x): 「상대가 … 「우선도 : +1」 이상의 기술」『선의 선』 · 「상대의 「우선도 : +」 기술」 · +0.5 는 뺌
+function prdOwnPrioUp(d){const re=/우선도\s*(?:[:：]\s*|에\s*)?\+\s*(\d+(?:\.\d+)?)/g;let m;
+  while((m=re.exec(d))){if(parseFloat(m[1])<1)continue;const after=d.substr(m.index+m[0].length,12),before=d.substring(Math.max(0,m.index-30),m.index);
+    if(after.includes('이상')||before.includes('상대가')||before.endsWith('상대의 「'))continue;return true}return false}
+function prdPrio(c){let best={f:0,src:'',kind:''};const P=PRD.prio;
+  for(const n of (c&&c.moves)||[]){const m=MV[n];if(!m||m[1]==='status'||!(m[2]>0))continue;const pv=+m[8]||0;if(pv<1)continue;
+    const cond=PRD.condMv.includes(n);const col=pv>=2&&m[2]>=P.pow?2:m[2]>=P.pow?1:0;const f=(cond?P.cond:P.on)[col];
+    if(f>best.f)best={f,src:n,kind:(cond?'조건부':'상시')+'·'+['약','강','초'][col]}}
+  const ab=c&&c.ab;if(ab&&PRD.prioAb[ab]>best.f)best={f:PRD.prioAb[ab],src:'특성 '+ab,kind:'특성'};
+  for(const p of (c&&c.pots)||[]){const d=String(p.desc||'');if(!prdOwnPrioUp(d))continue;const cond=/【\s*\d+\s*\/\s*시\s*】|확률/.test(d);
+    const f=(cond?P.cond:P.on)[1];if(f>best.f)best={f,src:'『'+p.name+'』',kind:(cond?'조건부':'상시')+'·강 (포텐셜)'}}
+  return best}
+function prdDual(c){const s=new Set(((c&&c.moves)||[]).filter(n=>MV[n]&&MV[n][2]>0).map(n=>MV[n][1]));return s.has('physical')&&s.has('special')}
+function prdCalc(st,lab,c){
+  const b=PRD_K.map(k=>+st[k]||0),real=b.reduce((a,x)=>a+x,0),main=Math.max(b[1],b[3]);
+  const S=prdStep(lab),floor=S?S[2]:40,opp=Math.round(main*PRD.opp);
+  const fa=Math.max(0,Math.max(floor,b[1]<main?opp:0)-b[1]),fc=Math.max(0,Math.max(floor,b[3]<main?opp:0)-b[3]);
+  const pri=prdPrio(c),sf=Math.max(floor,pri.f),fsp=Math.max(0,sf-b[5]);
+  const bulk=prdTwo(Math.min(b[2],b[4]),PRD.bulk),hp=prdTwo(b[0],PRD.hp),F=PRD.fs;
+  const fs=prdTwo(main,F)*Math.max(0,Math.min(1,(Math.min(b[5],F[5])-F[4])/Math.max(1,F[5]-F[4])));
+  const dRaw=PRD.dual[2]*Math.max(0,Math.min(Math.min(b[1],b[3]),PRD.dual[1])-PRD.dual[0]),dOk=prdDual(c),dual=dOk?dRaw:0;
+  const ct=real+fa+fc+fsp+bulk+hp+fs-dual;
+  return {real,ct,fa,fc,fsp,sf,floor,opp,bulk,hp,fs,dual,dRaw,dOk,pri,cap:S?S[1]:0,lo:prdLo(lab),lab,cost:S?S[3]:0};
+}
+function prdAuto(st,c){for(const s of prdOrig()){const x=prdCalc(st,s[0],c);if(x.ct<=s[1]+1e-9)return s[0]}return '오리지널 상한 초과'}
+function prdRuleOk(st,fam,cap){const five=['atk','def','spa','spd','spe'];
+  if(PRD_K.some(k=>st[k]<PRD.absMin))return false;if(st.hp>160)return false;if(five.some(k=>st[k]>cap))return false;
+  if(five.filter(k=>st[k]>=110).length>2)return false;if(fam==='killer'&&five.some(k=>st[k]>=140))return false;
+  if(['atk','def','spa'].some(k=>st[k]>=140)&&st.spe>=110)return false;return true}
+// 계단 안으로 맞추기: lo < 계산 종족치 ≤ hi · 실제 합 ≥ 하한 · 하한 밑 칸은 하한까지 올림(계산 종족치는 그대로)
+function prdFit(st,lab,c,fam,cap,hi,w){
+  hi=hi==null?prdStep(lab)[1]:hi;const lo=prdLo(lab),top=prdStep(lab)[1];w=w||{};
+  const floors=()=>{const x=prdCalc(st,lab,c);if(x.fa)st.atk+=x.fa;if(x.fc)st.spa+=x.fc;if(x.fsp)st.spe+=x.fsp;};
+  const minOf=(k,x)=>k==='atk'?Math.max(PRD.absMin,x.floor,st.atk<Math.max(st.atk,st.spa)?x.opp:0):k==='spa'?Math.max(PRD.absMin,x.floor,st.spa<Math.max(st.atk,st.spa)?x.opp:0):k==='spe'?Math.max(PRD.absMin,x.sf):PRD.absMin;
+  const pick=ks=>{const tot=ks.reduce((a,k)=>a+k[1],0);let r=Math.random()*tot;for(const k of ks){r-=k[1];if(r<=0)return k[0]}return ks[0]&&ks[0][0]};
+  floors();
+  for(let n=0;n<3000;n++){const x=prdCalc(st,lab,c);if(x.ct<=hi+1e-9)break;const d=x.ct-hi>25?5:1;
+    const ks=PRD_K.filter(k=>st[k]-d>=minOf(k,x)).map(k=>[k,Math.pow(st[k],1.5)]);if(!ks.length)break;st[pick(ks)]-=d}
+  for(let n=0;n<3000;n++){const x=prdCalc(st,lab,c);if(x.ct>lo+1e-9&&x.real>=PRD.realMin)break;const d=lo-x.ct>25?5:1;
+    const ks=PRD_K.filter(k=>{st[k]+=d;const ok=prdRuleOk(st,fam,cap)&&prdCalc(st,lab,c).ct<=top+1e-9;st[k]-=d;return ok}).map(k=>[k,Math.pow(st[k],1.5)*(w[k]||1)]);
+    if(!ks.length)break;st[pick(ks)]+=d}
+  floors();return st}
+function prdGen(types,tier,boss,fam,lab,wild){
+  const st=wild?enforceA(genStats(types,tier,false),''):genStatsRole(types,tier,false,fam);
+  const cap=CAP[tier]+(boss?15:0);for(const k of ['atk','def','spa','spd','spe'])st[k]=Math.min(st[k],cap);
+  const S=prdStep(lab),lo=prdLo(lab);const t=lo+(S[1]-lo)*(0.55+0.45*Math.random());
+  prdFit(st,lab,null,fam,cap,t);return st}
+function prdCap(M){return CAP[M.tier]+(M.boss?15:0)}
+function prdCtx(M){return {moves:M.moves,pots:M.pots,ab:M.ability}}
+// 화면: 종족치 칸 아래 한 줄
+function prdShow(){
+  let e=$('st-pride');if(!e){e=document.createElement('div');e.id='st-pride';e.className='sum';e.style.cssText='margin-top:4px;line-height:1.5';$('st-sum').after(e)}
+  if(!M||!M.pride||M.imported){e.textContent='';e.hidden=true;return}
+  e.hidden=false;const x=prdCalc(M.stats,M.pride,prdCtx(M)),auto=prdAuto(M.stats,prdCtx(M));const over=x.ct>x.cap+1e-9;
+  const parts=['실제 합 '+x.real];const off=x.fa+x.fc+x.fsp;if(off)parts.push('하한 +'+prdN(off));if(x.bulk)parts.push('내구 +'+prdN(x.bulk));if(x.hp)parts.push('HP +'+prdN(x.hp));if(x.fs)parts.push('화력·스피드 +'+prdN(x.fs));if(x.dual)parts.push('쌍두 −'+prdN(x.dual));
+  let t='프라이드 '+M.pride+' (통솔점 '+x.cost+') · 계산 종족치 '+prdN(x.ct)+' / '+x.cap+' ('+parts.join(' · ')+')'+(over?' · ⚠ 상한 '+prdN(x.ct-x.cap)+' 넘음':' · 남는 점수 '+prdN(x.cap-x.ct));
+  if(!over&&auto!==M.pride)t+=' · (지금 값은 '+auto+' 계단에도 들어감)';
+  if(x.real<PRD.realMin)t+=' · ⚠ 실제 합 '+PRD.realMin+' 미만';
+  if(x.pri.f)t+=' · 선공 하한 '+x.pri.f+' ('+x.pri.src+')';
+  e.textContent=t;e.style.color=over?'var(--boss,#b7791f)':'';
+}
+// 조건 칸: 계단 고르기 + 받은 상태 한 줄
+function prdFillSel(){const s=$('pride');if(!s)return;const cur=s.value;s.innerHTML='';s.append(new Option('랜덤 ('+prdOrig().map(x=>x[0]).join(' · ')+')',''));
+  for(const [l,cap,,cost] of prdOrig())s.append(new Option(l+' (계산 종족치 ~'+cap+' · 통솔점 '+cost+')',l));
+  s.value=[...s.options].some(o=>o.value===cur)?cur:(prdStep('B')?'B':'');}
+function prdSrcShow(){let el=$('pride-src');const box=$('f-power');if(!box)return;
+  if(!el){el=document.createElement('span');el.id='pride-src';el.style.cssText='grid-column:1/-1;font-size:12px;line-height:1.4;color:var(--muted)';box.append(el)}
+  const x=PRD_SRC;el.textContent='계단 표 = '+(x.kind==='live'?'✔ 시트 「'+PRD_TAB+'」에서 받음 ('+x.at+(x.via?' · '+x.via:'')+')':x.kind==='cache'?'지난번 시트에서 받은 판 ('+x.at+')':x.kind==='loading'?'시트에서 받는 중…':'페이지에 넣어 둔 판 ('+x.at+')')+(x.err?' — 못 받음: '+x.err:'');
+  el.style.color=x.err?'#b45309':x.kind==='live'?'#15803d':'';}
+function prdUse(P,src){PRD=P;PRD_SRC=src;prdFillSel();prdSrcShow();if(typeof M!=='undefined'&&M)prdShow();}
+async function prdSync(manual){const prev=PRD_SRC;PRD_SRC=Object.assign({},prev,{kind:'loading',err:''});prdSrcShow();const errs=[];
+  const csv='https://docs.google.com/spreadsheets/d/'+ZOK_SHEET+'/gviz/tq?tqx=out:csv&headers=1&sheet='+encodeURIComponent(PRD_TAB);
+  const viaCSV=async()=>{const ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),12000);let r;try{r=await fetch(csv+'&_='+Date.now(),{signal:ctl.signal,cache:'no-store'})}finally{clearTimeout(tm)}
+    if(!r.ok)throw new Error('HTTP '+r.status);const t=await r.text();if(/^\s*</.test(t))throw new Error('시트가 공개가 아닌 것 같아요');return zokCSV(t);};
+  const viaMcp=async()=>{const mcp=window.claude&&claude.use?await claude.use('mcp'):null;if(!mcp)return null;
+    try{const r=await mcp.callTool('Google Sheets','get_values',{spreadsheetId:ZOK_SHEET,range:"'"+PRD_TAB+"'!A1:G200"},{cache:false});const v=r.payload&&r.payload.values;if(!Array.isArray(v))throw new Error('받은 모양이 달라요');return v;}
+    catch(e){throw new Error((e&&ZOK_MCP_MSG[e.code])||((e&&e.code)||'')+' '+((e&&e.message)||e));}};
+  for(const [via,f] of [['공개 주소',viaCSV],['Google Sheets 연결',viaMcp]]){
+    if(via!=='공개 주소'&&!manual&&!(await zokMcpOk()))continue;
+    try{const rows=await f();if(!rows)continue;const P=prdFromRows(rows);
+      const at=new Date().toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
+      try{localStorage.setItem(PRD_KEY,JSON.stringify({at,rows}))}catch(e){}
+      prdUse(P,{kind:'live',at,via,err:''});return true;}
+    catch(e){errs.push(via+': '+(e&&e.name==='AbortError'?'시간 초과':String((e&&e.message)||e)));}}
+  PRD_SRC=Object.assign({},prev,{err:errs.join(' · ')||'이 화면에서는 시트에 닿을 길이 없어요'});prdSrcShow();return false;}
+function prdCache(){try{const c=JSON.parse(localStorage.getItem(PRD_KEY)||'null');if(c&&Array.isArray(c.rows)){prdUse(prdFromRows(c.rows),{kind:'cache',at:c.at,err:''});return}}catch(e){}prdFillSel();prdSrcShow();}
+setTimeout(()=>{prdCache();prdSync(false);const b=$('zk-sync');if(b)b.addEventListener('click',()=>prdSync(true));},0);
+
 // ───────── 생성 ─────────
 let M=null;   // 지금 만든 포켓몬
 function pickTypes(h,m,t1,t2){
@@ -1143,17 +1268,18 @@ function genItem(mode,tier,g,fromPots){
 }
 function readForm(){
   const mode=$('mode').value; const wild=mode==='wild';
-  const tier=wild?+$('tier').value:+$('power').value; const boss=wild&&$('boss').checked;
+  const pride=wild?'':($('pride').value||R(prdOrig().map(x=>x[0]))); const tier=wild?+$('tier').value:prdTier(pride); const boss=wild&&$('boss').checked;
   const h=$('habitat').value||R(Object.keys(HAB)); const m=$('motif').value||R(Object.keys(MOT)); const p=$('person').value||R(Object.keys(PER));
   const g={kind:$('gkind').value,val:$('gval').value};
-  return {mode,wild,tier,boss,h,m,p,g,t1:$('type1').value,t2:$('type2').value,grow:$('grow').value,role:$('role').value,lv:$('level').value,name0:$('name0').value.trim(),ep0:$('ep0').value.trim()};
+  return {mode,wild,tier,boss,pride,h,m,p,g,t1:$('type1').value,t2:$('type2').value,grow:$('grow').value,role:$('role').value,lv:$('level').value,name0:$('name0').value.trim(),ep0:$('ep0').value.trim()};
 }
 function build(){
   const f=readForm(); const types=pickTypes(f.h,f.m,f.t1,f.t2);
   const ep=f.ep0||genEp(f.p,types,f.m); const name=f.name0||genName(f.h,f.m);
   let k=f.wild?TIER[f.tier].kj+(f.boss&&f.tier<4?1:0):(f.grow==='A'?4:3);
   const g8nm=(f.role||'').startsWith('r:')?f.role.slice(2):''; const fam=f.wild?'':(g8nm?(ROLE_FAM_OF[g8nm]||'vanilla'):(f.role||pickRoleFamLearned()));
-  const st=f.wild?enforceA(genStats(types,f.tier,f.boss),''):genStatsRole(types,f.tier,f.boss,fam);
+  const lab=prdPick(f);   // 10-28 G9 프라이드 계단 (심도 1~2 야생 = 빈칸 = 예전 방식)
+  const st=lab?prdGen(types,f.tier,f.boss,fam,lab,f.wild):f.wild?enforceA(genStats(types,f.tier,f.boss),''):genStatsRole(types,f.tier,f.boss,fam);
   const plan=genPlan(types,f.tier,Math.max(1,k),ep,f.mode,f.g,st,fam,!f.wild&&f.grow==='A'); const kj=plan.rows;
   const need=kj.flatMap(x=>x.need);
   const mv=genMoves(types,f.tier,need,st,f.g); const ab=genAbility(types,kj);
@@ -1169,9 +1295,10 @@ function build(){
   if(!f.wild){const z=g8Zok(types,st,mv,kj,f.m,'',Math.max(1,plan.budget-plan.spent),f.grow==='A');if(z){pots.push({code:5,name:z.name,desc:z.desc,src:z.src||'(속별 틀)'});if(z.move&&!mv.includes(z.move))mv.push(z.move)}}
   if(f.wild)pots.push({code:13,name:'투쟁 본능',desc:'야생일 때 저확률로 상대의 공격을 무효화한다.'});
   else if(M_SUB)pots.push({code:13,name:M_SUB.name,desc:M_SUB.desc});
+  if(lab)prdFit(st,lab,{moves:mv,pots,ab},fam,CAP[f.tier]+(f.boss?15:0));   // 기술·포텐셜·특성이 정해진 뒤 선공 하한·쌍두까지 넣어 다시 맞춤
   const lv=f.lv?+f.lv:(f.wild?RI(...TIER[f.tier].lv)+(f.boss?10:0):100);
   const item=genItem(f.mode,f.tier,f.g,kj.map(x=>x.item).find(Boolean));
-  M={mode:f.mode,tier:f.tier,boss:f.boss,h:f.h,m:f.m,p:f.p,g:f.g,types,name,ep,level:lv,stats:st,ability:ab,moves:mv,pots,item,short:kj.length<k?k-kj.length:0,grow:f.wild?'':f.grow,role:fam,plan:{key:plan.key,starter:plan.starter,fams:kj.map(x=>x.fam)}};
+  M={mode:f.mode,tier:f.tier,boss:f.boss,pride:lab,h:f.h,m:f.m,p:f.p,g:f.g,types,name,ep,level:lv,stats:st,ability:ab,moves:mv,pots,item,short:kj.length<k?k-kj.length:0,grow:f.wild?'':f.grow,role:fam,plan:{key:plan.key,starter:plan.starter,fams:kj.map(x=>x.fam)}};
   render(); toast('생성했어요');
 }
 
@@ -1179,7 +1306,7 @@ function build(){
 function render(){
   if(!M)return;
   $('r-name').value=M.name; $('r-ep').value=M.ep;
-  const chips=[M.types.map(t=>TK[t]||t).join('/'),M.imported?'붙여넣기에서 가져옴':M.mode==='wild'?('심도'+M.tier+(M.boss?' 주인':'')):['','','','보통','강함','에이스'][M.tier]+' · 트레이너'+(M.grow?' · 육성 '+(M.grow==='A'?'A 이상':'B 이하'):'')];
+  const chips=[M.types.map(t=>TK[t]||t).join('/'),M.imported?'붙여넣기에서 가져옴':M.mode==='wild'?('심도'+M.tier+(M.boss?' 주인':'')+(M.pride?' · 프라이드 '+M.pride:'')):(M.pride?'프라이드 '+M.pride:['','','','보통','강함','에이스'][M.tier])+' · 트레이너'+(M.grow?' · 육성 '+(M.grow==='A'?'A 이상':'B 이하'):'')];
   $('r-chips').innerHTML=chips.map((c,i)=>'<span class="chip'+(M.boss&&i===1?' boss':'')+'">'+c+'</span>').join('')+'<span class="chip">Lv '+M.level+'</span>';
   $('r-meta').textContent=M.imported?'입력 · 수집에서 옮긴 포켓몬이에요. ↻ 다시 굴리기는 종족치·특성·기술만 쓰세요.':'컨셉: '+M.h+' / '+M.m+' / '+M.p+(M.g.kind?' · 기믹: '+M.g.val:'')+(M.plan?' · 작전: '+(M.role&&ROLE_OPT[M.role]?ROLE_OPT[M.role]+' / ':'')+'열쇠말 '+(keyKo(M.plan.key)||'없음')+(M.plan.starter?' / 시동 '+M.plan.starter:'')+' / 계제 '+M.plan.fams.map(f=>FAM_KO[f]||f).join('·'):'');
   renderStats(); renderAbility(); renderMoves(); renderPots(); renderItem(); renderOut();
@@ -1193,7 +1320,7 @@ function renderStats(){
 function renderRanks(){
   $('st-rk').innerHTML=SK.map(k=>'<td class="rank">'+rankOf(M.stats[k])+'</td>').join('');
   const s=SK.reduce((a,k)=>a+(+M.stats[k]),0); const s5=s-M.stats.hp;
-  $('st-sum').textContent='합계 '+s+' (HP 제외 '+s5+') · 심도 상한 '+(CAP[M.tier]+(M.boss?15:0));
+  $('st-sum').textContent='합계 '+s+' (HP 제외 '+s5+') · 칸 상한 '+(CAP[M.tier]+(M.boss?15:0)); prdShow();
 }
 function renderAbility(){ $('r-ab').value=M.ability; $('r-abdesc').textContent=AB[M.ability]||'(특성 데이터에 없음 — 설명은 게임에서 직접 입력)'; }
 function moveInfo(n){const m=MV[n];if(!m)return'(기술 데이터에 없음)';const c={physical:'물리',special:'특수',status:'변화'}[m[1]];return m[0].map(t=>TK[t]||'-').join('/')+' · '+c+(m[2]?' '+m[2]:'')+(m[3]?' · 명중'+m[3]:'')+(m[4].length?' · '+m[4].join(','):'')}
@@ -1241,7 +1368,7 @@ let outTab='paste';
 function kType(t){return t?TK[t]||'-':'-'}
 function buildPaste(){
   const s=M.stats; const t=[M.types[0],M.types[1],M.types[2]].map(kType);
-  const b=[M.name,M.level,...t,'-',M.ability||'-',s.hp,s.atk,s.def,s.spa,s.spd,s.spe,0,0,0,0,0,0,'-','-','-'].join(';');
+  const b=[M.name,M.level,...t,'-',M.ability||'-',s.hp,s.atk,s.def,s.spa,s.spd,s.spe,0,0,0,0,0,0,(M.pride&&!M.imported?M.pride:'-'),'-','-'].join(';');
   const used={}; const P=[];
   for(const p of M.pots){ if(!p.name&&!p.desc)continue; const n=(used[p.code]||0); if(n>=(CODE_IDX[p.code]||[]).length)continue; used[p.code]=n+1; P.push(p); }
   const names=P.map(p=>p.name.replace(/[#;]/g,' ')).join(';'), descs=P.map(p=>p.desc.replace(/\n/g,'<br>').replace(/[#;]/g,' ')).join(';'), codes=P.map(p=>p.code).join(';');
@@ -1252,22 +1379,23 @@ function buildJson(){
   const P=Array.from({length:20},()=>({name:'',desc:''})); const used={};
   for(const p of M.pots){const n=used[p.code]||0;const idx=(CODE_IDX[p.code]||[])[n];if(idx===undefined)continue;used[p.code]=n+1;P[idx]={name:p.name,desc:p.desc};}
   const moves=M.moves.filter(Boolean).slice(0,10).map(n=>({name:n,type:MV[n]?(MV[n][0][0]==='typeless'?'':MV[n][0][0]):''})); while(moves.length<10)moves.push({name:'',type:''});
-  const o={name:M.name,species:'',trainer:'',types:[M.types[0]||'',M.types[1]||'',M.types[2]||''],tera:'',egg:['',''],level:M.level,pride:'',gender:'',
+  const o={name:M.name,species:'',trainer:'',types:[M.types[0]||'',M.types[1]||'',M.types[2]||''],tera:'',egg:['',''],level:M.level,pride:(M.pride&&!M.imported?M.pride:''),gender:'',
     ability:{name:M.ability,desc:AB[M.ability]||''},moves,stats:M.stats,potentials:P,signatures:[{name:'',desc:''},{name:'',desc:''},{name:'',desc:''}],image:'',pot_layout:2,suhwa:false,forms:[],ext_moves:[],flavors:{},
     _concept:M.h+' / '+M.m+' / '+M.p,_item:M.item,_gimmick:M.g.kind?M.g.val:''};
   return JSON.stringify({[M.name]:o},null,1);
 }
 function buildText(){
   const s=M.stats; const L=[];
-  L.push('■ '+M.name+'  ['+(M.mode==='wild'?'심도'+M.tier+(M.boss?' 주인':''):'트레이너 소지')+']  '+M.types.map(t=>TK[t]).join('/')+'  Lv'+M.level+'  (컨셉: '+M.h+' / '+M.m+' / '+M.p+', 별칭 '+M.ep+')');
+  L.push('■ '+M.name+'  ['+(M.mode==='wild'?'심도'+M.tier+(M.boss?' 주인':''):'트레이너 소지')+(M.pride&&!M.imported?' · 프라이드 '+M.pride:'')+']  '+M.types.map(t=>TK[t]).join('/')+'  Lv'+M.level+'  (컨셉: '+M.h+' / '+M.m+' / '+M.p+', 별칭 '+M.ep+')');
   L.push('  종족치 H'+s.hp+' A'+s.atk+' B'+s.def+' C'+s.spa+' D'+s.spd+' S'+s.spe+' = '+SK.reduce((a,k)=>a+(+s[k]),0)+'  ('+SK.map(k=>rankOf(s[k])).join(' ')+')');
+  if(M.pride&&!M.imported){const x=prdCalc(M.stats,M.pride,prdCtx(M));L.push('  계산 종족치 '+prdN(x.ct)+' / '+x.cap+' (프라이드 '+M.pride+')');}
   L.push('  특성 '+M.ability+': '+(AB[M.ability]||''));
   L.push('  기술 '+M.moves.filter(Boolean).join(', '));
   for(const p of M.pots)L.push('  『'+p.name+'』 '+p.desc.replace(/\n/g,' '));
   if(M.item)L.push('  소지품 '+M.item);
   return L.join('\n');
 }
-function renderOut(){ if(!M)return; $('out').value=outTab==='paste'?buildPaste():outTab==='json'?buildJson():buildText(); }
+function renderOut(){ if(!M)return; prdShow(); $('out').value=outTab==='paste'?buildPaste():outTab==='json'?buildJson():buildText(); }
 
 // ───────── 조건 패널 채우기 ─────────
 function fillSel(id,opts,first){const s=$(id);s.innerHTML='';if(first!==undefined)s.append(new Option(first,''));for(const [v,l] of opts)s.append(new Option(l,v));}
@@ -1286,7 +1414,7 @@ function fillGval(){
 $('gkind').onchange=fillGval;
 $('mode').onchange=()=>{const w=$('mode').value==='wild';$('f-tier').hidden=!w;$('f-power').hidden=w;$('f-grow').hidden=w;$('f-role').hidden=w;$('f-zksrc').hidden=w;$('level').placeholder=w?'비우면 자동':'비우면 100'};
 $('gen').onclick=build;
-$('re-stats').onclick=()=>{M.stats=M.mode==='wild'||M.imported?enforceA(genStats(M.types,M.tier,M.boss),''):genStatsRole(M.types,M.tier,M.boss,M.role||'');renderStats();renderOut()};
+$('re-stats').onclick=()=>{if(M.pride&&!M.imported){M.stats=prdGen(M.types,M.tier,M.boss,M.role||'',M.pride,M.mode==='wild');prdFit(M.stats,M.pride,prdCtx(M),M.role||'',prdCap(M));renderStats();renderOut();return}M.stats=M.mode==='wild'||M.imported?enforceA(genStats(M.types,M.tier,M.boss),''):genStatsRole(M.types,M.tier,M.boss,M.role||'');renderStats();renderOut()};
 $('re-ab').onclick=()=>{M.ability=genAbility(M.types,M.pots.filter(p=>p.code===4));renderAbility();renderOut()};
 $('r-ab').oninput=e=>{M.ability=e.target.value.trim();$('r-abdesc').textContent=AB[M.ability]||'(특성 데이터에 없음)';renderOut()};
 $('re-mv').onclick=()=>{M.moves=genMoves(M.types,M.tier,M.pots.flatMap(p=>p.need||[]),M.stats,M.g);renderMoves();renderOut()};
