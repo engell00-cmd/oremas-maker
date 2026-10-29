@@ -432,7 +432,7 @@ button.b.big { font-size: 19px; padding: 16px 14px; border-radius: 12px; width: 
 
     <details class="box" id="m-moves">
       <summary><h2 class="sec">기술</h2><span class="hint" id="m-moves-hint"></span></summary>
-      <div class="inner"><div id="m-move-list"></div></div>
+      <div class="inner"><div class="note" id="m-sock-line"></div><div class="row note"><span style="flex:1 1 200px;min-width:0" id="m-sock-src"></span><button class="b sm" id="m-sock-sync">시트에서 다시 받기</button></div><div id="m-move-list"></div></div>
     </details>
 
     <details class="box" id="m-forms">
@@ -1192,14 +1192,16 @@ $("m-mega-load").addEventListener("click", () => {
 // 표 = 시트 「프라이드 규칙」 탭 (게임 · 생성기와 같은 표) — 열 때 받고, 못 받으면 이 휴대폰에 지난번 받은 판 → 넣어 둔 판
 // 계산 종족치 = 원래 종족치 합 + 하한분(공격·특공·스피드, 선공 하한) + 내구·HP·화력·스피드 할증 − 쌍두 할인 → 그 값이 들어가는 가장 낮은 계단 = 프라이드
 // 슬라임 10-28: 오리지널 A+ 를 넘으면 「저장 막기」(시트) O = 줄을 안 만듦 / X(지금) = 경고만 · 통솔점 = 대표 팀(여기선 앞 6마리) + 서브 따로 · 직책 배율
-function mprDefault() { return { steps: [["C", 480, 40, 1, true], ["C+", 510, 43, 1.5, true], ["B", 540, 45, 2, true], ["B+", 570, 48, 2.5, true], ["A", 600, 50, 3, true], ["A+", 650, 54, 4, true], ["S", 9999, 58, 4.5, false]],
+function mprDefault() { return { steps: [["C", 530, 44, 1, true], ["C+", 560, 47, 1.5, true], ["B", 590, 49, 2, true], ["B+", 620, 52, 2.5, true], ["A", 650, 54, 3, true], ["A+", 700, 58, 4, true], ["S", 9999, 58, 4.5, false]],
   lead: { E: 8, D: 8, C: 8, "B-": 9, B: 10, A: 12, AA: 14, AAA: 16, S: 18 }, sub: { E: 2.5, D: 2.5, C: 8, "B-": 15, B: 16.5, A: 28, AA: 32.5, AAA: 37.5, S: 42 },
-  post: { "체육관 관장": 2, "사천왕": 2.5, "악의 조직": 2 }, realMin: 400, absMin: 31, opp: 0.4, oldLow: 0.5, block: false,
+  post: { "체육관 관장": 2, "사천왕": 2.5, "악의 조직": 2 }, realMin: 440, absMin: 34, opp: 0.4, oldLow: 0.5, block: false,
   bulk: [85, 105, 0.5, 0.75], hp: [95, 120, 0.5, 0.75], fs: [105, 120, 0.5, 1, 90, 140], dual: [90, 120, 1],
   prio: { pow: 50, on: [60, 70, 85], cond: [55, 60, 70] }, prioAb: { "짓궂은마음": 60, "질풍날개": 60 }, condMv: ["기선제압", "속이기", "만나자마자", "기습", "질풍신뢰"] }; }
-let MPR = mprDefault(), MPR_SRC = { kind: "built", at: "10-28 13:4x", err: "" };
+let MPR = mprDefault(), MPR_SRC = { kind: "built", at: "10-29 326", err: "" };
 const MPR_TAB = "프라이드 규칙", MPR_KEY = "oremas-mobile-pride-v1", MPR_K = ["hp", "atk", "def", "spa", "spd", "spe"];
-const MPR_OLD = ["올드 타입", "메가진화", "메가 진화", "다이맥스", "거다이맥스"], MPR_POSTS = ["", "체육관 관장", "사천왕", "악의 조직"];
+// 10-29 328 올드 타입 = 원래 합 500↓C · 550↓B · 600↓A · 넘으면 S, 통솔점 = 그 계단 −1 (최저 MPR.oldLow) · 델타·적응종 = 같은 계단, 할인 없음
+const MPR_OLD_STEPS = [["C", 500], ["B", 550], ["A", 600], ["S", Infinity]];
+const MPR_OLD = ["올드 타입", "메가진화", "메가 진화", "다이맥스", "거다이맥스"], MPR_ADAPT = ["적응종", "델타종"], MPR_POSTS = ["", "체육관 관장", "사천왕", "악의 조직"];
 function mprFromRows(rows) {
   const P = mprDefault(), num = (x, d) => { const v = parseFloat(String(x ?? "").replace(/,/g, "")); return isNaN(v) ? d : v; };
   const steps = [], lead = {}, sub = {}, post = {};
@@ -1227,7 +1229,9 @@ const mprTwo = (x, o) => o[2] * Math.max(0, Math.min(x, o[1]) - o[0]) + o[3] * M
 const mprStep = (lab) => MPR.steps.find((s) => s[0] === lab) || null;
 const mprCost = (lab) => { const s = mprStep(lab); return s ? s[3] : lab === String(MPR.oldLow) || lab === "0.5" ? MPR.oldLow : 0; };
 const mprTop = () => { let t = null; for (const s of MPR.steps) if (s[4]) t = s; return t; };
-function mprIsOld(m) { return (m.pots || []).some((p) => p && MPR_OLD.includes(String(p.name || "").trim().replace(/^『|』$/g, ""))); }
+const mprHasPot = (m, list) => (m.pots || []).some((p) => p && list.includes(String(p.name || "").trim().replace(/^『|』$/g, "")));
+function mprIsOld(m) { return mprHasPot(m, MPR_OLD); }
+function mprIsAdapt(m) { return mprHasPot(m, MPR_ADAPT); }
 // 포텐셜 글이 자기 기술 우선도를 올리는지 (게임 own_prio_up 과 같음)
 function mprOwnPrioUp(d) {
   const re = /우선도\s*(?:[:：]\s*|에\s*)?\+\s*(\d+(?:\.\d+)?)/g; let m;
@@ -1262,10 +1266,9 @@ function mprBreak(x) { const p = ["원래 합 " + x.real], off = x.fa + x.fc + x
 function mprJudge(m) {
   const real = MPR_K.reduce((a, k) => a + toInt(m.stats && m.stats[k], 0), 0);
   if (real <= 0) return { pride: "", ok: true, old: false, msg: "", warn: [] };
-  if (mprIsOld(m)) { let lab = ""; for (const s of MPR.steps) if (s[4] && real >= s[1]) lab = s[0]; const top = mprTop();
-    if (top && real > top[1]) { const s = MPR.steps.find((x) => !x[4]); if (s) lab = s[0]; }
-    if (!lab) lab = real < MPR.steps[0][1] ? String(MPR.oldLow) : MPR.steps[0][0];
-    return { pride: lab, ok: true, old: true, msg: `올드 타입 · 원래 합 ${real} → 프라이드 ${lab} (통솔점 ${mprN(mprCost(lab))})`, warn: [] }; }
+  const adapt = mprIsAdapt(m);
+  if (adapt || mprIsOld(m)) { const lab = MPR_OLD_STEPS.find((s) => real <= s[1])[0], cost = adapt ? mprCost(lab) : Math.max(MPR.oldLow, mprCost(lab) - 1);
+    return { pride: lab, ok: true, old: true, cost, msg: `${adapt ? "델타·적응종 (올드 계단 · 할인 없음)" : "올드 타입"} · 원래 합 ${real} → 프라이드 ${lab} (통솔점 ${mprN(cost)})`, warn: [] }; }
   const pri = mprPrio(m); let last = null, over = false;
   for (const s of MPR.steps) { if (!s[4]) continue; last = mprCalcAt(m, s[0], pri); over = last.ct > s[1] + 1e-9; if (!over) break; }
   const warn = []; if (MPR_K.some((k) => toInt(m.stats && m.stats[k], 0) < MPR.absMin)) warn.push(`절대 하한 ${MPR.absMin} 미만 칸이 있어요`);
@@ -1279,7 +1282,7 @@ const mprMult = (post) => post ? (MPR.post[post] ?? 1) : 1;
 function mprTrainer(t, list) {
   const g = (t.q && t.q.통솔) || "C", mult = mprMult(t.post || "");
   const out = { mainUsed: 0, mainCap: mprGrade(MPR.lead, g) * mult, subUsed: 0, subCap: mprGrade(MPR.sub, g) * mult, bad: [] };
-  list.forEach((e, i) => { const j = mprJudge(e.mon); if (!j.ok) out.bad.push(e.mon.name || "(이름 없음)"); const c = mprCost(j.pride); if (i < 6) out.mainUsed += c; else out.subUsed += c; });
+  list.forEach((e, i) => { const j = mprJudge(e.mon); if (!j.ok) out.bad.push(e.mon.name || "(이름 없음)"); const c = j.cost ?? mprCost(j.pride); if (i < 6) out.mainUsed += c; else out.subUsed += c; });
   const why = []; if (out.mainUsed > out.mainCap + 1e-9) why.push(`대표 팀(앞 6마리) 통솔점 ${mprN(out.mainUsed)} / ${mprN(out.mainCap)}`);
   if (out.subUsed > out.subCap + 1e-9) why.push(`서브 통솔점 ${mprN(out.subUsed)} / ${mprN(out.subCap)}`); if (out.bad.length) why.push("오리지널 상한을 넘은 포켓몬: " + out.bad.join(", "));
   out.ok = !why.length; out.msg = why.join(" · "); return out;
@@ -1306,6 +1309,45 @@ async function mprSync(manual) {
 }
 function mprCache() { try { const c = JSON.parse(localStorage.getItem(MPR_KEY) || "null"); if (c && Array.isArray(c.rows)) { MPR = mprFromRows(c.rows); MPR_SRC = { kind: "cache", at: c.at, err: "" }; } } catch (e) {} }
 mprCache();
+
+// ───────── 10-29 기술 소켓 — 받는 소켓 = 프라이드(C·B·A·S) × 최대 화력 등급(공격·특공 중 높은 쪽) 표 · 기술마다 소켓 = 시트 「기술 일람」 【소켓】 칸 ─────────
+// 프라이드 C+ · B+ · A+ 는 알파벳 칸 (C+ → C) · 화력 등급 = 생성기 rankOf 와 같은 기준 (200↑ S · 170 AAA · 140 AA · 110 A · 90 B · 60 C · 40 D, 그 아래 E = 안 됨 · 사용자 10-29) · null = 그 조합 없음
+const MSK_PRIDE = ["C", "B", "A", "S"], MSK_TABLE = { S: [null, 5, 5, 6], AAA: [null, 5.5, 5.5, 6], AA: [6, 6, 6, 6.5], A: [6.5, 6.5, 6.5, 7], B: [8, 8, 8, 8], C: [9, 9, 9, null], D: [9.5, 9.5, 9.5, null] };
+const MSK_FP = [["S", 200], ["AAA", 170], ["AA", 140], ["A", 110], ["B", 90], ["C", 60], ["D", 40], ["E", 0]];
+const MSK_GID = "1284656167", MSK_KEY = "oremas-mobile-sock-v1";
+let MSK = new Map(), MSK_SRC = { kind: "none", at: "", err: "" };
+function mskFp(m) { const v = Math.max(toInt(m.stats && m.stats.atk, 0), toInt(m.stats && m.stats.spa, 0)); return { v, g: MSK_FP.find((x) => v >= x[1])[0] }; }
+function mskGiven(m, pride) {
+  const col = MSK_PRIDE.indexOf(String(pride || "").trim().charAt(0)), fp = mskFp(m);
+  if (col < 0) return { fp, n: null, why: "프라이드가 정해지지 않아서" };
+  if (fp.g === "E") return { fp, col: MSK_PRIDE[col], n: null, why: "최대 화력 E(40 미만)는 안 돼요 — 공격이나 특공을 40 이상으로" };
+  const n = MSK_TABLE[fp.g][col]; return { fp, col: MSK_PRIDE[col], n, why: n == null ? `프라이드 ${MSK_PRIDE[col]} · 화력 ${fp.g} 조합은 표에 없어요` : "" };
+}
+const mskOf = (name) => MSK.get(String(name || "").trim());
+function mskFromRows(rows) {
+  const hi = rows.findIndex((r) => r.some((x) => /소켓/.test(String(x))) && r.some((x) => /기술명/.test(String(x))));
+  const h = hi >= 0 ? rows[hi] : ["【소켓】", "【기술명】"], iS = h.findIndex((x) => /소켓/.test(String(x))), iN = h.findIndex((x) => /기술명/.test(String(x)));
+  const out = new Map();
+  for (const r of rows.slice(hi + 1)) { const n = String(r[iN] ?? "").trim(), v = parseFloat(String(r[iS] ?? "").replace(/,/g, "")); if (n && !isNaN(v)) out.set(n, v); }
+  if (out.size < 50) throw new Error("소켓 값이 너무 적어요 (" + out.size + ")");
+  return out;
+}
+function mskShowSrc() { const el = $("m-sock-src"); if (!el) return; const x = MSK_SRC;
+  el.textContent = "기술 소켓 = " + (x.kind === "live" ? `✔ 시트 「기술 일람」에서 받음 (${x.at} · ${MSK.size}개)` : x.kind === "cache" ? `지난번 받은 판 (${x.at} · ${MSK.size}개)` : x.kind === "loading" ? "받는 중…" : "아직 못 받음") + (x.err ? " — 못 받음: " + x.err : ""); }
+async function mskSync() {
+  const prev = MSK_SRC; MSK_SRC = Object.assign({}, prev, { kind: "loading", err: "" }); mskShowSrc();
+  try {
+    const ctl = new AbortController(), tm = setTimeout(() => ctl.abort(), 15000); let r;
+    try { r = await fetch(`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&headers=1&gid=${MSK_GID}&tq=${encodeURIComponent("select A, C")}&_=${Date.now()}`, { signal: ctl.signal, cache: "no-store" }); } finally { clearTimeout(tm); }
+    if (!r.ok) throw new Error("HTTP " + r.status); const text = await r.text(); if (/^\s*</.test(text)) throw new Error("시트가 공개가 아닌 것 같아요");
+    const rows = parseCSV(text), map = mskFromRows(rows);
+    const at = new Date().toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
+    try { localStorage.setItem(MSK_KEY, JSON.stringify({ at, list: [...map] })); } catch (e) {}
+    MSK = map; MSK_SRC = { kind: "live", at, err: "" }; mskShowSrc(); refreshMon();
+  } catch (e) { MSK_SRC = Object.assign({}, prev, { err: e && e.name === "AbortError" ? "시간 초과" : String((e && e.message) || e) }); mskShowSrc(); }
+}
+function mskCache() { try { const c = JSON.parse(localStorage.getItem(MSK_KEY) || "null"); if (c && Array.isArray(c.list)) { MSK = new Map(c.list); MSK_SRC = { kind: "cache", at: c.at, err: "" }; } } catch (e) {} }
+mskCache();
 
 function renderMon() {
   ensureApt(S.mon);
@@ -1359,9 +1401,16 @@ function refreshMon() {
     if (n) mc++;
     if (!n) el.innerHTML = "";
     else if (!mv) el.innerHTML = '<span class="warn">기술 데이터에 없음 (배틀에서 쓸 수 없음)</span>';
-    else el.innerHTML = `${tyChips(mv[1])}${catChip(mv[2])}${reachChip(mv[9])}위력 ${mv[3] || "—"} · 명중 ${mv[4] || "—"}${mv[5] ? " · 우선도 " + (mv[5] > 0 ? "+" : "") + mv[5] : ""}${mv[6] ? " · 접촉" : ""}`;
+    else el.innerHTML = `${tyChips(mv[1])}${catChip(mv[2])}${reachChip(mv[9])}위력 ${mv[3] || "—"} · 명중 ${mv[4] || "—"}${mv[5] ? " · 우선도 " + (mv[5] > 0 ? "+" : "") + mv[5] : ""}${mv[6] ? " · 접촉" : ""}${mskOf(n) != null ? " · 소켓 " + mskOf(n) : ""}`;
   });
   $("m-moves-hint").textContent = mc + "개 · " + m.moves.filter((x) => x.name).map((x) => x.name).join(", ");
+  { const g = mskGiven(m, m.pride), names = m.moves.map((x) => String(x.name || "").trim()).filter(Boolean), miss = names.filter((n) => mskOf(n) == null);   // 10-29 기술 소켓
+    const used = names.reduce((a, n) => a + (mskOf(n) || 0), 0), el = $("m-sock-line"), base = `최대 화력 ${g.fp.v} → ${g.fp.g}`;
+    let t, cls = "note";
+    if (g.n == null) { t = `기술 소켓 — ${base} · 받는 소켓 없음 (${g.why})`; cls += " warn"; }
+    else { t = `기술 소켓 ${mprN(used)} / ${g.n} (프라이드 ${g.col} · ${base}) · 남는 소켓 ${mprN(g.n - used)}`; if (used > g.n + 1e-9) { t = "⚠ 소켓 넘음 — " + t; cls += " err"; } }
+    if (MSK.size && miss.length) t += ` · 소켓 값이 없는 기술: ${miss.join(", ")}`;
+    el.textContent = t; el.className = cls; }
   renderForms();
   updateMonOut();
 }
@@ -2907,7 +2956,8 @@ $("ver").textContent = `기술 ${D.moves.length.toLocaleString()} · 특성 ${D.
 loadTableCache(); loadPhrCache();
 renderMon(); renderTr(); setTab(S.tab === "tr" ? "tr" : "mon"); monFoldLabel();
 fromGame(); window.addEventListener("hashchange", fromGame);
-syncSheet(false); syncPhrases(false); mprShowSrc(); mprSync(false);
+syncSheet(false); syncPhrases(false); mprShowSrc(); mprSync(false); mskShowSrc(); mskSync();
+$("m-sock-sync").addEventListener("click", () => mskSync());
 window.__oremas = { parseMon, buildMon, parseTrainers, buildTrainer, qualityType, lint, sortTags, addTag, defaultsFrom, fillForm, compose, slotToks, phrasesFromRows, parseCSV, tableFromRows, autoExpGrant, sansikFill, sansikParse, SANS_TB, get TB() { return TB; }, get S() { return S; }, switchMon, startNew, monQ, expOk, tacOk, breedAA, privOk, potRuleWarns, renderMon, aptList };
 </script>
 
