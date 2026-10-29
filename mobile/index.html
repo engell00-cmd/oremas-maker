@@ -1388,9 +1388,9 @@ function monTrOf(m) { try { if (S && m === S.mon) return monTrainer(); const e =
 function abChange(m) {
   const out = { d: 0, src: "", warn: "" }, tr = monTrOf(m), g = tr ? String((tr.q || {}).능력 || "C") : "";
   for (const p of [m.sig, m.sig2]) { const mm = p && AB_CHANGE_RE.exec(String(p.desc || "")); if (!mm) continue;
-    const xs = askOf(mm[1].trim()), big = xs != null && xs >= 2.5; let d = 0;
+    const xs = askOf(mm[1].trim()), big = xs != null && xs > 2.5;   /* 341: 2.5 까지는 능력 A~AA 도 */ let d = 0;
     if (!g) d = 1;
-    else if (big && !grAtLeast(g, "AAA")) out.warn = `전용 『${p.name}』: 소켓 ${xs} 특성 「${mm[1].trim()}」로 바꾸는 건 트레이너 「능력」 AAA 이상만 (지금 ${g})`;
+    else if (big && !grAtLeast(g, "AAA")) out.warn = `전용 『${p.name}』: 소켓 ${xs} 특성 「${mm[1].trim()}」로 바꾸는 건 트레이너 「능력」 AAA 이상만 — 2.5 까지는 A 이상 (지금 ${g})`;
     else if (grAtLeast(g, "A")) d = 1;
     else out.warn = `전용 『${p.name}』(자신을 「특성 : …」로 만든다)는 트레이너 「능력」 A 이상만 쓸 수 있어요 (지금 ${g})`;
     if (d > out.d) { out.d = d; out.src = "전용 『" + p.name + "』"; } }
