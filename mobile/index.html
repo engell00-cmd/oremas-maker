@@ -1192,13 +1192,15 @@ $("m-mega-load").addEventListener("click", () => {
 // 표 = 시트 「프라이드 규칙」 탭 (게임 · 생성기와 같은 표) — 열 때 받고, 못 받으면 이 휴대폰에 지난번 받은 판 → 넣어 둔 판
 // 계산 종족치 = 원래 종족치 합 + 하한분(공격·특공·스피드, 선공 하한) + 내구·HP·화력·스피드 할증 − 쌍두 할인 → 그 값이 들어가는 가장 낮은 계단 = 프라이드
 // 슬라임 10-28: 오리지널 A+ 를 넘으면 「저장 막기」(시트) O = 줄을 안 만듦 / X(지금) = 경고만 · 통솔점 = 대표 팀(여기선 앞 6마리) + 서브 따로 · 직책 배율
-function mprDefault() { return { steps: [["C", 480, 40, 1, true], ["C+", 510, 43, 1.5, true], ["B", 540, 45, 2, true], ["B+", 570, 48, 2.5, true], ["A", 600, 50, 3, true], ["A+", 650, 54, 4, true], ["S", 9999, 58, 4.5, false]],
+function mprDefault() { return { steps: [["C", 530, 44, 1, true], ["C+", 560, 47, 1.5, true], ["B", 590, 49, 2, true], ["B+", 620, 52, 2.5, true], ["A", 650, 54, 3, true], ["A+", 700, 58, 4, true], ["S", 9999, 58, 4.5, false]],
   lead: { E: 8, D: 8, C: 8, "B-": 9, B: 10, A: 12, AA: 14, AAA: 16, S: 18 }, sub: { E: 2.5, D: 2.5, C: 8, "B-": 15, B: 16.5, A: 28, AA: 32.5, AAA: 37.5, S: 42 },
-  post: { "체육관 관장": 2, "사천왕": 2.5, "악의 조직": 2 }, realMin: 400, absMin: 31, opp: 0.4, oldLow: 0.5, block: false,
+  post: { "체육관 관장": 2, "사천왕": 2.5, "악의 조직": 2 }, realMin: 440, absMin: 34, opp: 0.4, oldLow: 0.5, block: false,
   bulk: [85, 105, 0.5, 0.75], hp: [95, 120, 0.5, 0.75], fs: [105, 120, 0.5, 1, 90, 140], dual: [90, 120, 1],
   prio: { pow: 50, on: [60, 70, 85], cond: [55, 60, 70] }, prioAb: { "짓궂은마음": 60, "질풍날개": 60 }, condMv: ["기선제압", "속이기", "만나자마자", "기습", "질풍신뢰"] }; }
-let MPR = mprDefault(), MPR_SRC = { kind: "built", at: "10-28 13:4x", err: "" };
+let MPR = mprDefault(), MPR_SRC = { kind: "built", at: "10-29 326", err: "" };
 const MPR_TAB = "프라이드 규칙", MPR_KEY = "oremas-mobile-pride-v1", MPR_K = ["hp", "atk", "def", "spa", "spd", "spe"];
+// 10-29 328 올드 타입 = 원래 합 500↓C · 550↓B · 600↓A · 넘으면 S, 통솔점 = 그 계단 −1 (최저 MPR.oldLow)
+const MPR_OLD_STEPS = [["C", 500], ["B", 550], ["A", 600], ["S", Infinity]];
 const MPR_OLD = ["올드 타입", "메가진화", "메가 진화", "다이맥스", "거다이맥스"], MPR_POSTS = ["", "체육관 관장", "사천왕", "악의 조직"];
 function mprFromRows(rows) {
   const P = mprDefault(), num = (x, d) => { const v = parseFloat(String(x ?? "").replace(/,/g, "")); return isNaN(v) ? d : v; };
@@ -1262,10 +1264,8 @@ function mprBreak(x) { const p = ["원래 합 " + x.real], off = x.fa + x.fc + x
 function mprJudge(m) {
   const real = MPR_K.reduce((a, k) => a + toInt(m.stats && m.stats[k], 0), 0);
   if (real <= 0) return { pride: "", ok: true, old: false, msg: "", warn: [] };
-  if (mprIsOld(m)) { let lab = ""; for (const s of MPR.steps) if (s[4] && real >= s[1]) lab = s[0]; const top = mprTop();
-    if (top && real > top[1]) { const s = MPR.steps.find((x) => !x[4]); if (s) lab = s[0]; }
-    if (!lab) lab = real < MPR.steps[0][1] ? String(MPR.oldLow) : MPR.steps[0][0];
-    return { pride: lab, ok: true, old: true, msg: `올드 타입 · 원래 합 ${real} → 프라이드 ${lab} (통솔점 ${mprN(mprCost(lab))})`, warn: [] }; }
+  if (mprIsOld(m)) { const lab = MPR_OLD_STEPS.find((s) => real <= s[1])[0], cost = Math.max(MPR.oldLow, mprCost(lab) - 1);
+    return { pride: lab, ok: true, old: true, cost, msg: `올드 타입 · 원래 합 ${real} → 프라이드 ${lab} (통솔점 ${mprN(cost)})`, warn: [] }; }
   const pri = mprPrio(m); let last = null, over = false;
   for (const s of MPR.steps) { if (!s[4]) continue; last = mprCalcAt(m, s[0], pri); over = last.ct > s[1] + 1e-9; if (!over) break; }
   const warn = []; if (MPR_K.some((k) => toInt(m.stats && m.stats[k], 0) < MPR.absMin)) warn.push(`절대 하한 ${MPR.absMin} 미만 칸이 있어요`);
@@ -1279,7 +1279,7 @@ const mprMult = (post) => post ? (MPR.post[post] ?? 1) : 1;
 function mprTrainer(t, list) {
   const g = (t.q && t.q.통솔) || "C", mult = mprMult(t.post || "");
   const out = { mainUsed: 0, mainCap: mprGrade(MPR.lead, g) * mult, subUsed: 0, subCap: mprGrade(MPR.sub, g) * mult, bad: [] };
-  list.forEach((e, i) => { const j = mprJudge(e.mon); if (!j.ok) out.bad.push(e.mon.name || "(이름 없음)"); const c = mprCost(j.pride); if (i < 6) out.mainUsed += c; else out.subUsed += c; });
+  list.forEach((e, i) => { const j = mprJudge(e.mon); if (!j.ok) out.bad.push(e.mon.name || "(이름 없음)"); const c = j.cost ?? mprCost(j.pride); if (i < 6) out.mainUsed += c; else out.subUsed += c; });
   const why = []; if (out.mainUsed > out.mainCap + 1e-9) why.push(`대표 팀(앞 6마리) 통솔점 ${mprN(out.mainUsed)} / ${mprN(out.mainCap)}`);
   if (out.subUsed > out.subCap + 1e-9) why.push(`서브 통솔점 ${mprN(out.subUsed)} / ${mprN(out.subCap)}`); if (out.bad.length) why.push("오리지널 상한을 넘은 포켓몬: " + out.bad.join(", "));
   out.ok = !why.length; out.msg = why.join(" · "); return out;
