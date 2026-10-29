@@ -428,6 +428,7 @@ button.b.big { font-size: 19px; padding: 16px 14px; border-radius: 12px; width: 
     <details class="box" id="m-sig">
       <summary><h2 class="sec">전용 포텐셜</h2><span class="hint" id="m-sig-hint"></span></summary>
       <div class="inner">
+        <div class="note" id="m-sig-own"></div>
         <label class="f">이름<input id="m-sig-name" data-k="sig.name" autocomplete="off"></label>
         <label class="f">설명<textarea id="m-sig-desc" data-k="sig.desc" rows="3"></textarea></label>
         <div class="row"><button class="b pri" id="m-sig-pick">고르기</button><button class="b" id="m-sig-macro">짜기</button><button class="b sm lint" data-lintfor="m-sig-desc" title="교정">·</button></div>
@@ -1289,7 +1290,7 @@ function mprJudge(m) {
   for (const s of MPR.steps) { if (!s[4]) continue; last = mprCalcAt(m, s[0], pri); over = last.ct > s[1] + 1e-9; if (!over) break; }
   const warn = []; if (MPR_K.some((k) => toInt(m.stats && m.stats[k], 0) < MPR.absMin)) warn.push(`절대 하한 ${MPR.absMin} 미만 칸이 있어요`);
   if (real < MPR.realMin) warn.push(`원래 종족치 합 ${real} · ${MPR.realMin} 이상이 기준이에요`);
-  { const cw = abChange(m).warn; if (cw) warn.push(cw); }   // 336
+  { const cw = abChange(m).warn; if (cw) warn.push(cw); const ow = sigOwnerWarn(m); if (ow) warn.push(ow); }   // 336 · 337
   if (over) { const top = mprTop(); return { pride: "", ok: false, old: false, warn, msg: `계산 종족치 ${mprN(last.ct)} 가 오리지널 상한 ${top[0]}(${top[1]})를 ${mprN(last.ct - top[1])} 넘어요 — 능력치를 덜어 주세요 (${mprBreak(last)})` }; }
   return { pride: last.lab, ok: true, old: false, warn, msg: `프라이드 ${last.lab} (통솔점 ${mprN(last.cost)}) · 계산 종족치 ${mprN(last.ct)} / ${last.cap} · 남는 점수 ${mprN(last.cap - last.ct)} (${mprBreak(last)})` };
 }
@@ -1362,6 +1363,16 @@ function abChange(m) {
     if (d > out.d) { out.d = d; out.src = "전용 『" + p.name + "』"; } }
   for (const p of m.pots || []) if (p && AB_CHANGE_RE.test(String(p.desc || "")) && out.d < 0.5) { out.d = 0.5; out.src = "『" + p.name + "』"; }
   return out;
+}
+// 337 (사용자 10-29 21:46): 주인 트레이너가 없는 포켓몬은 전용 포텐셜을 못 가짐 — 『베테랑』처럼 「독자적으로 『전용 포텐셜』을 보유한다」 포텐셜이 있으면 됨 (게임 pride_rule.gd sig_owner_warn)
+const OWN_SIG_RE = /독자적으로\s*『?\s*전용(?:\s*포텐셜)?\s*』?\s*(?:을|를)\s*보유/;
+function sigOwnerWarn(m) {
+  const has = [m.sig, m.sig2].some((p) => p && (String(p.name || "").trim() || String(p.desc || "").trim()));
+  if (!has) return "";
+  let tr = null; try { tr = m === S.mon ? S.monTr || "" : ((S.box || []).find((x) => x.mon === m) || {}).tr || ""; } catch (e) { tr = ""; }
+  if (String(tr || "").trim()) return "";
+  if ((m.pots || []).some((p) => p && (OWN_SIG_RE.test(String(p.desc || "")) || String(p.name || "").trim().replace(/^『|』$/g, "") === "베테랑"))) return "";
+  return "주인 트레이너가 없는 포켓몬은 전용 포텐셜을 못 가져요 — 『베테랑』처럼 「독자적으로 『전용 포텐셜』을 보유한다」 포텐셜이 있어야 해요";
 }
 function abSock(m) { const s0 = askOf(m.ability); if (s0 == null) return null; const ch = abChange(m), bon = sockBonus(m).ab + ch.d; return { s0, bon, ch, s: Math.max(0, s0 - bon) }; }
 const mprAdapt = (m) => (m.pots || []).some((p) => p && ["적응종", "델타종"].includes(String(p.name || "").trim().replace(/^『|』$/g, "")));
@@ -1454,7 +1465,8 @@ function refreshMon() {
   });
   const exN = op.특권 + op.역할 + op.전술;
   $("m-pots-hint").textContent = filled + " / " + (BASE_SLOTS + exN) + "칸" + (exN ? " (늘어난 칸 " + exN + ")" : "");
-  { const sn = [m.sig, m.sig2].filter((x) => x && String(x.name).trim()).map((x) => "『" + x.name + "』"); $("m-sig-hint").textContent = sn.length ? sn.join(" ") : "(비어 있음)"; }
+  { const sn = [m.sig, m.sig2].filter((x) => x && String(x.name).trim()).map((x) => "『" + x.name + "』"); $("m-sig-hint").textContent = (sigOwnerWarn(m) ? "⚠ " : "") + (sn.length ? sn.join(" ") : "(비어 있음)");
+    const ow = $("m-sig-own"), w = sigOwnerWarn(m), noTr = !String(S.monTr || "").trim(); ow.textContent = w || (noTr ? "주인 트레이너가 없으면 『베테랑』 같은 포텐셜이 있어야 전용을 넣을 수 있어요" : ""); ow.className = "note" + (w ? " err" : ""); }
   let mc = 0;
   m.moves.forEach((x, i) => {
     const n = String(x.name).trim(), mv = MOVES.get(n), el = $("m-mv-" + i + "-meta");
