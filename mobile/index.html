@@ -395,6 +395,8 @@ button.b.big { font-size: 19px; padding: 16px 14px; border-radius: 12px; width: 
         </div>
         <div class="note" id="m-type-note"></div>
         <div class="note" id="m-level-note"></div>
+        <div class="row" style="justify-content:flex-end"><button class="b sm ghost" id="m-del" style="color:var(--no);border-color:var(--no)">이 포켓몬 지우기</button></div>
+        <div class="note" id="m-del-note" hidden>이 편집기 보관함에서만 지워요 — 게임에 넣은 포켓몬은 게임 포켓몬 박스에서 지워요.</div>
       </div>
     </details>
 
@@ -1067,7 +1069,7 @@ function partyStrip(list, addTr) {
 }
 function ownBox(list, tr, label) {
   return `<div class="ownbox"><div class="grp-h">${esc(label || "소지 포켓몬")} <span>${list.length}마리 · 누르면 포켓몬 탭에서 고쳐요</span></div>
-    ${list.map((e, i) => `<div class="own"><button class="item own-r${e.id === S.cur ? " sel" : ""}" data-mopen="${esc(e.id)}"><span class="no">No.${String(i + 1).padStart(3, "0")}</span><b>${esc(boxName(e) || "(이름 없음)")}</b> ${tyChips(e.mon.types.filter(Boolean).join("/"))}<span class="d">${esc([e.mon.pots[0] && e.mon.pots[0].name, e.mon.level ? "Lv." + e.mon.level : "", tr === "" && e.tr ? "빠진 트레이너 「" + e.tr + "」" : ""].filter(Boolean).join(" · "))}</span></button><button class="b sm ghost" data-mdel="${esc(e.id)}">빼기</button></div>`).join("")}
+    ${list.map((e, i) => `<div class="own"><button class="item own-r${e.id === S.cur ? " sel" : ""}" data-mopen="${esc(e.id)}"><span class="no">No.${String(i + 1).padStart(3, "0")}</span><b>${esc(boxName(e) || "(이름 없음)")}</b> ${tyChips(e.mon.types.filter(Boolean).join("/"))}<span class="d">${esc([e.mon.pots[0] && e.mon.pots[0].name, e.mon.level ? "Lv." + e.mon.level : "", tr === "" && e.tr ? "빠진 트레이너 「" + e.tr + "」" : ""].filter(Boolean).join(" · "))}</span></button><button class="b sm ghost" data-mdel="${esc(e.id)}" style="color:var(--no)">지우기</button></div>`).join("")}
     <div class="row"><button class="b sm pri" data-mnew="${esc(tr)}">＋ 새 포켓몬${tr ? "" : " (트레이너 없음)"}</button></div></div>`;
 }
 function delMon(id) {
@@ -1078,7 +1080,7 @@ function delMon(id) {
     if (next) { S.cur = next.id; S.mon = next.mon; S.monTr = next.tr || ""; S.monFrom = next.from || ""; }
     else { const e = { id: newMonId(), tr: was.tr || "", mon: blankMon(), from: "", q: S.monQ }; S.box.push(e); S.cur = e.id; S.mon = e.mon; S.monTr = e.tr; S.monFrom = ""; }
   }
-  toast("『" + (boxName(was) || "이름 없음") + "』을 뺐어요"); save();
+  toast("『" + (boxName(was) || "이름 없음") + "』을 지웠어요"); save();
 }
 
 function toast(t) { const el = $("toast"); el.textContent = t; el.classList.add("show"); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove("show"), 1800); }
@@ -1634,6 +1636,13 @@ $("m-home").addEventListener("click", () => { S.monHome = true; refreshFresh(); 
 $("m-start-paste").addEventListener("click", () => { S.monStarted = true; S.monHome = false; refreshFresh(); $("m-in").open = true; $("m-in").scrollIntoView({ behavior: "smooth", block: "start" }); setTimeout(() => $("m-in-text").focus(), 300); });
 // 고치던 포켓몬이 있으면 두 번 눌러야 비움 (실수 방지)
 $("m-new2").addEventListener("click", () => startNew());
+// 342f: 지금 고치는 포켓몬 지우기 (두 번 누름 · 3초 지나면 풀림) → 같은 트레이너의 다른 포켓몬, 없으면 빈 칸
+$("m-del").addEventListener("click", (ev) => {
+  const b = ev.currentTarget;
+  if (!b.dataset.armed) { b.dataset.armed = "1"; b.textContent = "한 번 더 누르면 지워요"; $("m-del-note").hidden = false; clearTimeout(b._t); b._t = setTimeout(() => { delete b.dataset.armed; b.textContent = "이 포켓몬 지우기"; $("m-del-note").hidden = true; }, 3000); return; }
+  clearTimeout(b._t); delete b.dataset.armed; b.textContent = "이 포켓몬 지우기"; $("m-del-note").hidden = true;
+  syncCur(); delMon(S.cur); normMon(S.mon); renderMon(); save();
+});
 $("m-party").addEventListener("click", (e) => { const b = e.target.closest("[data-mopen],[data-mnew]"); if (!b) return; if (b.dataset.mnew != null) startNew(b.dataset.mnew); else if (b.dataset.mopen !== S.cur) { switchMon(b.dataset.mopen); toast("『" + (S.mon.name || "이름 없음") + "』"); } });
 $("m-boxlink").addEventListener("click", () => { S.trHome = !S.tr.length; setTab("tr"); renderTr(); window.scrollTo(0, 0); });
 $("m-pot-list").addEventListener("click", (e) => {
@@ -2327,7 +2336,7 @@ $("t-list").addEventListener("click", (e) => {
   // 248-⑥ 소지 포켓몬: 고치기 · 새로 · 빼기 (카드 머리 안 단추는 접기·펴기를 막음)
   if (b.dataset.mopen != null) { e.preventDefault(); switchMon(b.dataset.mopen); return; }
   if (b.dataset.mnew != null) { e.preventDefault(); startNew(b.dataset.mnew); setTab("mon"); return; }
-  if (b.dataset.mdel != null) { if (b.dataset.armed) { delMon(b.dataset.mdel); renderTr(); } else { b.dataset.armed = "1"; b.textContent = "한 번 더 = 빼기"; } return; }
+  if (b.dataset.mdel != null) { if (b.dataset.armed) { delMon(b.dataset.mdel); renderTr(); } else { b.dataset.armed = "1"; b.textContent = "한 번 더 = 지우기"; } return; }
   if (b.dataset.tstart != null) { S.trHome = false; $("t-add").click(); const c = $("t-list").lastElementChild && $("t-list").lastElementChild.querySelector('[data-tk="name"]'); if (c) setTimeout(() => c.focus(), 250); return; }
   if (b.dataset.tresume != null) { S.trHome = false; renderTr(); window.scrollTo(0, 0); return; }
   const card = b.closest(".tr-card"), ti = +card.dataset.ti, t = S.tr[ti];
