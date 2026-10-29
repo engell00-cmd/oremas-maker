@@ -1271,7 +1271,7 @@ function mprCalcAt(m, lab, pri) {
   const sk = abSock(m), to = MPR.to[lab] ?? 1, toAdj = sk ? 2 * MPR.toUp * Math.max(0, sk.s - to) - 2 * MPR.toDown * Math.max(0, MPR.toFloor - sk.s) : 0;   // 335 특성 TO
   return { real, ct: real + fa + fc + fsp + bulk + hp + fs - dual + toAdj, fa, fc, fsp, bulk, hp, fs, dual, pri, cap: S ? S[1] : 0, lab, cost: S ? S[3] : 0, sk, to, toAdj };
 }
-function mprBreak(x) { const p = ["원래 합 " + x.real], off = x.fa + x.fc + x.fsp; if (off) p.push("하한 +" + mprN(off)); if (x.bulk) p.push("내구 +" + mprN(x.bulk)); if (x.hp) p.push("HP +" + mprN(x.hp)); if (x.fs) p.push("화력·스피드 +" + mprN(x.fs)); if (x.dual) p.push("쌍두 −" + mprN(x.dual)); if (x.toAdj) p.push(`특성 소켓 ${mprN(x.sk.s)} (TO ${mprN(x.to)}) ${x.toAdj > 0 ? "+" : "−"}${mprN(Math.abs(x.toAdj))}`); if (x.pri.f) p.push("선공 하한 " + x.pri.f + " (" + x.pri.src + ")"); return p.join(" · "); }
+function mprBreak(x) { const p = ["원래 합 " + x.real], off = x.fa + x.fc + x.fsp; if (off) p.push("하한 +" + mprN(off)); if (x.bulk) p.push("내구 +" + mprN(x.bulk)); if (x.hp) p.push("HP +" + mprN(x.hp)); if (x.fs) p.push("화력·스피드 +" + mprN(x.fs)); if (x.dual) p.push("쌍두 −" + mprN(x.dual)); if (x.sk && x.sk.ch && x.sk.ch.d) p.push(`특성 바꾸기 할인 −${mprN(x.sk.ch.d)} (${x.sk.ch.src})`); if (x.toAdj) p.push(`특성 소켓 ${mprN(x.sk.s)} (TO ${mprN(x.to)}) ${x.toAdj > 0 ? "+" : "−"}${mprN(Math.abs(x.toAdj))}`); if (x.pri.f) p.push("선공 하한 " + x.pri.f + " (" + x.pri.src + ")"); return p.join(" · "); }
 // 포켓몬 하나: {pride, ok, old, msg, warn}
 function mprJudge(m) {
   const real = MPR_K.reduce((a, k) => a + toInt(m.stats && m.stats[k], 0), 0);
@@ -1289,6 +1289,7 @@ function mprJudge(m) {
   for (const s of MPR.steps) { if (!s[4]) continue; last = mprCalcAt(m, s[0], pri); over = last.ct > s[1] + 1e-9; if (!over) break; }
   const warn = []; if (MPR_K.some((k) => toInt(m.stats && m.stats[k], 0) < MPR.absMin)) warn.push(`절대 하한 ${MPR.absMin} 미만 칸이 있어요`);
   if (real < MPR.realMin) warn.push(`원래 종족치 합 ${real} · ${MPR.realMin} 이상이 기준이에요`);
+  { const cw = abChange(m).warn; if (cw) warn.push(cw); }   // 336
   if (over) { const top = mprTop(); return { pride: "", ok: false, old: false, warn, msg: `계산 종족치 ${mprN(last.ct)} 가 오리지널 상한 ${top[0]}(${top[1]})를 ${mprN(last.ct - top[1])} 넘어요 — 능력치를 덜어 주세요 (${mprBreak(last)})` }; }
   return { pride: last.lab, ok: true, old: false, warn, msg: `프라이드 ${last.lab} (통솔점 ${mprN(last.cost)}) · 계산 종족치 ${mprN(last.ct)} / ${last.cap} · 남는 점수 ${mprN(last.cap - last.ct)} (${mprBreak(last)})` };
 }
@@ -1345,7 +1346,24 @@ function sockBonus(m) {
     const v = +x[3], ks = [x[1], x[2]]; if (ks.includes("특성")) out.ab += v; if (ks.includes("기술")) out.mv += v; }
   return out;
 }
-function abSock(m) { const s0 = askOf(m.ability); if (s0 == null) return null; const bon = sockBonus(m).ab; return { s0, bon, s: Math.max(0, s0 - bon) }; }
+// 336 (사용자 10-29 21:37~21:42): 「자신을 「특성 : X」로 만든다(만들고)」 — 전용 = 트레이너 능력 A 이상 1 할인 (A 미만은 그 전용을 못 씀) · 소켓 2.5 이상 특성으로 바꾸는 전용 = 능력 AAA 이상만 · 속별·계제 등 = 0.5 · 가장 큰 하나 (게임 pride_rule.gd ab_change_discount 와 같음)
+const AB_CHANGE_RE = /자신을\s*「\s*특성\s*[:：]\s*([^」]+?)\s*」\s*(?:으로|로)\s*만(?:들|든)/;
+const GR_ORD = ["E-", "E", "E+", "D-", "D", "D+", "C-", "C", "C+", "B-", "B", "B+", "A-", "A", "A+", "AA-", "AA", "AA+", "AAA-", "AAA", "AAA+", "S"];
+const grAtLeast = (g, w) => { const h = GR_ORD.indexOf(String(g || "").trim()), lo = GR_ORD.indexOf(w === "S" ? "S" : w + "-"); return h >= 0 && lo >= 0 && h >= lo; };
+function monTrOf(m) { try { if (S && m === S.mon) return monTrainer(); const e = (S.box || []).find((x) => x.mon === m); return e && e.tr ? (S.tr || []).find((t) => t.name === e.tr) || null : null; } catch (e) { return null; } }
+function abChange(m) {
+  const out = { d: 0, src: "", warn: "" }, tr = monTrOf(m), g = tr ? String((tr.q || {}).능력 || "C") : "";
+  for (const p of [m.sig, m.sig2]) { const mm = p && AB_CHANGE_RE.exec(String(p.desc || "")); if (!mm) continue;
+    const xs = askOf(mm[1].trim()), big = xs != null && xs >= 2.5; let d = 0;
+    if (!g) d = 1;
+    else if (big && !grAtLeast(g, "AAA")) out.warn = `전용 『${p.name}』: 소켓 ${xs} 특성 「${mm[1].trim()}」로 바꾸는 건 트레이너 「능력」 AAA 이상만 (지금 ${g})`;
+    else if (grAtLeast(g, "A")) d = 1;
+    else out.warn = `전용 『${p.name}』(자신을 「특성 : …」로 만든다)는 트레이너 「능력」 A 이상만 쓸 수 있어요 (지금 ${g})`;
+    if (d > out.d) { out.d = d; out.src = "전용 『" + p.name + "』"; } }
+  for (const p of m.pots || []) if (p && AB_CHANGE_RE.test(String(p.desc || "")) && out.d < 0.5) { out.d = 0.5; out.src = "『" + p.name + "』"; }
+  return out;
+}
+function abSock(m) { const s0 = askOf(m.ability); if (s0 == null) return null; const ch = abChange(m), bon = sockBonus(m).ab + ch.d; return { s0, bon, ch, s: Math.max(0, s0 - bon) }; }
 const mprAdapt = (m) => (m.pots || []).some((p) => p && ["적응종", "델타종"].includes(String(p.name || "").trim().replace(/^『|』$/g, "")));
 const mprMega = (m) => (m.pots || []).some((p) => p && ["메가진화", "메가 진화"].includes(String(p.name || "").trim().replace(/^『|』$/g, "")));
 // 받는 기술 소켓 {mode: socket|count|none, n(받는 소켓 · null = 없음), why, fp, col}
