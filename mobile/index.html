@@ -1311,15 +1311,16 @@ function mprCache() { try { const c = JSON.parse(localStorage.getItem(MPR_KEY) |
 mprCache();
 
 // ───────── 10-29 기술 소켓 — 받는 소켓 = 프라이드(C·B·A·S) × 최대 화력 등급(공격·특공 중 높은 쪽) 표 · 기술마다 소켓 = 시트 「기술 일람」 【소켓】 칸 ─────────
-// 프라이드 C+ · B+ · A+ 는 알파벳 칸 (C+ → C) · 화력 등급 = 생성기 rankOf 와 같은 기준 (200↑ S · 170 AAA · 140 AA · 110 A · 90 B · 60 C · 40 D, 그 아래 E = D 칸) · null = 그 조합 없음
+// 프라이드 C+ · B+ · A+ 는 알파벳 칸 (C+ → C) · 화력 등급 = 생성기 rankOf 와 같은 기준 (200↑ S · 170 AAA · 140 AA · 110 A · 90 B · 60 C · 40 D, 그 아래 E = 안 됨 · 사용자 10-29) · null = 그 조합 없음
 const MSK_PRIDE = ["C", "B", "A", "S"], MSK_TABLE = { S: [null, 5, 5, 6], AAA: [null, 5.5, 5.5, 6], AA: [6, 6, 6, 6.5], A: [6.5, 6.5, 6.5, 7], B: [8, 8, 8, 8], C: [9, 9, 9, null], D: [9.5, 9.5, 9.5, null] };
-const MSK_FP = [["S", 200], ["AAA", 170], ["AA", 140], ["A", 110], ["B", 90], ["C", 60], ["D", 0]];
+const MSK_FP = [["S", 200], ["AAA", 170], ["AA", 140], ["A", 110], ["B", 90], ["C", 60], ["D", 40], ["E", 0]];
 const MSK_GID = "1284656167", MSK_KEY = "oremas-mobile-sock-v1";
 let MSK = new Map(), MSK_SRC = { kind: "none", at: "", err: "" };
 function mskFp(m) { const v = Math.max(toInt(m.stats && m.stats.atk, 0), toInt(m.stats && m.stats.spa, 0)); return { v, g: MSK_FP.find((x) => v >= x[1])[0] }; }
 function mskGiven(m, pride) {
   const col = MSK_PRIDE.indexOf(String(pride || "").trim().charAt(0)), fp = mskFp(m);
   if (col < 0) return { fp, n: null, why: "프라이드가 정해지지 않아서" };
+  if (fp.g === "E") return { fp, col: MSK_PRIDE[col], n: null, why: "최대 화력 E(40 미만)는 안 돼요 — 공격이나 특공을 40 이상으로" };
   const n = MSK_TABLE[fp.g][col]; return { fp, col: MSK_PRIDE[col], n, why: n == null ? `프라이드 ${MSK_PRIDE[col]} · 화력 ${fp.g} 조합은 표에 없어요` : "" };
 }
 const mskOf = (name) => MSK.get(String(name || "").trim());
