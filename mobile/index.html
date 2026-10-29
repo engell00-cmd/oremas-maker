@@ -1199,9 +1199,9 @@ function mprDefault() { return { steps: [["C", 530, 44, 1, true], ["C+", 560, 47
   prio: { pow: 50, on: [60, 70, 85], cond: [55, 60, 70] }, prioAb: { "짓궂은마음": 60, "질풍날개": 60 }, condMv: ["기선제압", "속이기", "만나자마자", "기습", "질풍신뢰"] }; }
 let MPR = mprDefault(), MPR_SRC = { kind: "built", at: "10-29 326", err: "" };
 const MPR_TAB = "프라이드 규칙", MPR_KEY = "oremas-mobile-pride-v1", MPR_K = ["hp", "atk", "def", "spa", "spd", "spe"];
-// 10-29 328 올드 타입 = 원래 합 500↓C · 550↓B · 600↓A · 넘으면 S, 통솔점 = 그 계단 −1 (최저 MPR.oldLow)
+// 10-29 328 올드 타입 = 원래 합 500↓C · 550↓B · 600↓A · 넘으면 S, 통솔점 = 그 계단 −1 (최저 MPR.oldLow) · 델타·적응종 = 같은 계단, 할인 없음
 const MPR_OLD_STEPS = [["C", 500], ["B", 550], ["A", 600], ["S", Infinity]];
-const MPR_OLD = ["올드 타입", "메가진화", "메가 진화", "다이맥스", "거다이맥스"], MPR_POSTS = ["", "체육관 관장", "사천왕", "악의 조직"];
+const MPR_OLD = ["올드 타입", "메가진화", "메가 진화", "다이맥스", "거다이맥스"], MPR_ADAPT = ["적응종", "델타종"], MPR_POSTS = ["", "체육관 관장", "사천왕", "악의 조직"];
 function mprFromRows(rows) {
   const P = mprDefault(), num = (x, d) => { const v = parseFloat(String(x ?? "").replace(/,/g, "")); return isNaN(v) ? d : v; };
   const steps = [], lead = {}, sub = {}, post = {};
@@ -1229,7 +1229,9 @@ const mprTwo = (x, o) => o[2] * Math.max(0, Math.min(x, o[1]) - o[0]) + o[3] * M
 const mprStep = (lab) => MPR.steps.find((s) => s[0] === lab) || null;
 const mprCost = (lab) => { const s = mprStep(lab); return s ? s[3] : lab === String(MPR.oldLow) || lab === "0.5" ? MPR.oldLow : 0; };
 const mprTop = () => { let t = null; for (const s of MPR.steps) if (s[4]) t = s; return t; };
-function mprIsOld(m) { return (m.pots || []).some((p) => p && MPR_OLD.includes(String(p.name || "").trim().replace(/^『|』$/g, ""))); }
+const mprHasPot = (m, list) => (m.pots || []).some((p) => p && list.includes(String(p.name || "").trim().replace(/^『|』$/g, "")));
+function mprIsOld(m) { return mprHasPot(m, MPR_OLD); }
+function mprIsAdapt(m) { return mprHasPot(m, MPR_ADAPT); }
 // 포텐셜 글이 자기 기술 우선도를 올리는지 (게임 own_prio_up 과 같음)
 function mprOwnPrioUp(d) {
   const re = /우선도\s*(?:[:：]\s*|에\s*)?\+\s*(\d+(?:\.\d+)?)/g; let m;
@@ -1264,8 +1266,9 @@ function mprBreak(x) { const p = ["원래 합 " + x.real], off = x.fa + x.fc + x
 function mprJudge(m) {
   const real = MPR_K.reduce((a, k) => a + toInt(m.stats && m.stats[k], 0), 0);
   if (real <= 0) return { pride: "", ok: true, old: false, msg: "", warn: [] };
-  if (mprIsOld(m)) { const lab = MPR_OLD_STEPS.find((s) => real <= s[1])[0], cost = Math.max(MPR.oldLow, mprCost(lab) - 1);
-    return { pride: lab, ok: true, old: true, cost, msg: `올드 타입 · 원래 합 ${real} → 프라이드 ${lab} (통솔점 ${mprN(cost)})`, warn: [] }; }
+  const adapt = mprIsAdapt(m);
+  if (adapt || mprIsOld(m)) { const lab = MPR_OLD_STEPS.find((s) => real <= s[1])[0], cost = adapt ? mprCost(lab) : Math.max(MPR.oldLow, mprCost(lab) - 1);
+    return { pride: lab, ok: true, old: true, cost, msg: `${adapt ? "델타·적응종 (올드 계단 · 할인 없음)" : "올드 타입"} · 원래 합 ${real} → 프라이드 ${lab} (통솔점 ${mprN(cost)})`, warn: [] }; }
   const pri = mprPrio(m); let last = null, over = false;
   for (const s of MPR.steps) { if (!s[4]) continue; last = mprCalcAt(m, s[0], pri); over = last.ct > s[1] + 1e-9; if (!over) break; }
   const warn = []; if (MPR_K.some((k) => toInt(m.stats && m.stats[k], 0) < MPR.absMin)) warn.push(`절대 하한 ${MPR.absMin} 미만 칸이 있어요`);
