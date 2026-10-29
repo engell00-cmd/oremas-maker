@@ -432,7 +432,7 @@ button.b.big { font-size: 19px; padding: 16px 14px; border-radius: 12px; width: 
 
     <details class="box" id="m-moves">
       <summary><h2 class="sec">기술</h2><span class="hint" id="m-moves-hint"></span></summary>
-      <div class="inner"><div id="m-move-list"></div></div>
+      <div class="inner"><div class="note" id="m-sock-line"></div><div class="row note"><span style="flex:1 1 200px;min-width:0" id="m-sock-src"></span><button class="b sm" id="m-sock-sync">시트에서 다시 받기</button></div><div id="m-move-list"></div></div>
     </details>
 
     <details class="box" id="m-forms">
@@ -1310,6 +1310,44 @@ async function mprSync(manual) {
 function mprCache() { try { const c = JSON.parse(localStorage.getItem(MPR_KEY) || "null"); if (c && Array.isArray(c.rows)) { MPR = mprFromRows(c.rows); MPR_SRC = { kind: "cache", at: c.at, err: "" }; } } catch (e) {} }
 mprCache();
 
+// ───────── 10-29 기술 소켓 — 받는 소켓 = 프라이드(C·B·A·S) × 최대 화력 등급(공격·특공 중 높은 쪽) 표 · 기술마다 소켓 = 시트 「기술 일람」 【소켓】 칸 ─────────
+// 프라이드 C+ · B+ · A+ 는 알파벳 칸 (C+ → C) · 화력 등급 = 생성기 rankOf 와 같은 기준 (200↑ S · 170 AAA · 140 AA · 110 A · 90 B · 60 C · 40 D, 그 아래 E = D 칸) · null = 그 조합 없음
+const MSK_PRIDE = ["C", "B", "A", "S"], MSK_TABLE = { S: [null, 5, 5, 6], AAA: [null, 5.5, 5.5, 6], AA: [6, 6, 6, 6.5], A: [6.5, 6.5, 6.5, 7], B: [8, 8, 8, 8], C: [9, 9, 9, null], D: [9.5, 9.5, 9.5, null] };
+const MSK_FP = [["S", 200], ["AAA", 170], ["AA", 140], ["A", 110], ["B", 90], ["C", 60], ["D", 0]];
+const MSK_GID = "1284656167", MSK_KEY = "oremas-mobile-sock-v1";
+let MSK = new Map(), MSK_SRC = { kind: "none", at: "", err: "" };
+function mskFp(m) { const v = Math.max(toInt(m.stats && m.stats.atk, 0), toInt(m.stats && m.stats.spa, 0)); return { v, g: MSK_FP.find((x) => v >= x[1])[0] }; }
+function mskGiven(m, pride) {
+  const col = MSK_PRIDE.indexOf(String(pride || "").trim().charAt(0)), fp = mskFp(m);
+  if (col < 0) return { fp, n: null, why: "프라이드가 정해지지 않아서" };
+  const n = MSK_TABLE[fp.g][col]; return { fp, col: MSK_PRIDE[col], n, why: n == null ? `프라이드 ${MSK_PRIDE[col]} · 화력 ${fp.g} 조합은 표에 없어요` : "" };
+}
+const mskOf = (name) => MSK.get(String(name || "").trim());
+function mskFromRows(rows) {
+  const hi = rows.findIndex((r) => r.some((x) => /소켓/.test(String(x))) && r.some((x) => /기술명/.test(String(x))));
+  const h = hi >= 0 ? rows[hi] : ["【소켓】", "【기술명】"], iS = h.findIndex((x) => /소켓/.test(String(x))), iN = h.findIndex((x) => /기술명/.test(String(x)));
+  const out = new Map();
+  for (const r of rows.slice(hi + 1)) { const n = String(r[iN] ?? "").trim(), v = parseFloat(String(r[iS] ?? "").replace(/,/g, "")); if (n && !isNaN(v)) out.set(n, v); }
+  if (out.size < 50) throw new Error("소켓 값이 너무 적어요 (" + out.size + ")");
+  return out;
+}
+function mskShowSrc() { const el = $("m-sock-src"); if (!el) return; const x = MSK_SRC;
+  el.textContent = "기술 소켓 = " + (x.kind === "live" ? `✔ 시트 「기술 일람」에서 받음 (${x.at} · ${MSK.size}개)` : x.kind === "cache" ? `지난번 받은 판 (${x.at} · ${MSK.size}개)` : x.kind === "loading" ? "받는 중…" : "아직 못 받음") + (x.err ? " — 못 받음: " + x.err : ""); }
+async function mskSync() {
+  const prev = MSK_SRC; MSK_SRC = Object.assign({}, prev, { kind: "loading", err: "" }); mskShowSrc();
+  try {
+    const ctl = new AbortController(), tm = setTimeout(() => ctl.abort(), 15000); let r;
+    try { r = await fetch(`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&headers=1&gid=${MSK_GID}&tq=${encodeURIComponent("select A, C")}&_=${Date.now()}`, { signal: ctl.signal, cache: "no-store" }); } finally { clearTimeout(tm); }
+    if (!r.ok) throw new Error("HTTP " + r.status); const text = await r.text(); if (/^\s*</.test(text)) throw new Error("시트가 공개가 아닌 것 같아요");
+    const rows = parseCSV(text), map = mskFromRows(rows);
+    const at = new Date().toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
+    try { localStorage.setItem(MSK_KEY, JSON.stringify({ at, list: [...map] })); } catch (e) {}
+    MSK = map; MSK_SRC = { kind: "live", at, err: "" }; mskShowSrc(); refreshMon();
+  } catch (e) { MSK_SRC = Object.assign({}, prev, { err: e && e.name === "AbortError" ? "시간 초과" : String((e && e.message) || e) }); mskShowSrc(); }
+}
+function mskCache() { try { const c = JSON.parse(localStorage.getItem(MSK_KEY) || "null"); if (c && Array.isArray(c.list)) { MSK = new Map(c.list); MSK_SRC = { kind: "cache", at: c.at, err: "" }; } } catch (e) {} }
+mskCache();
+
 function renderMon() {
   ensureApt(S.mon);
   fillEggSelect($("m-egg0"), S.mon.egg[0]); fillEggSelect($("m-egg1"), S.mon.egg[1]);
@@ -1362,9 +1400,16 @@ function refreshMon() {
     if (n) mc++;
     if (!n) el.innerHTML = "";
     else if (!mv) el.innerHTML = '<span class="warn">기술 데이터에 없음 (배틀에서 쓸 수 없음)</span>';
-    else el.innerHTML = `${tyChips(mv[1])}${catChip(mv[2])}${reachChip(mv[9])}위력 ${mv[3] || "—"} · 명중 ${mv[4] || "—"}${mv[5] ? " · 우선도 " + (mv[5] > 0 ? "+" : "") + mv[5] : ""}${mv[6] ? " · 접촉" : ""}`;
+    else el.innerHTML = `${tyChips(mv[1])}${catChip(mv[2])}${reachChip(mv[9])}위력 ${mv[3] || "—"} · 명중 ${mv[4] || "—"}${mv[5] ? " · 우선도 " + (mv[5] > 0 ? "+" : "") + mv[5] : ""}${mv[6] ? " · 접촉" : ""}${mskOf(n) != null ? " · 소켓 " + mskOf(n) : ""}`;
   });
   $("m-moves-hint").textContent = mc + "개 · " + m.moves.filter((x) => x.name).map((x) => x.name).join(", ");
+  { const g = mskGiven(m, m.pride), names = m.moves.map((x) => String(x.name || "").trim()).filter(Boolean), miss = names.filter((n) => mskOf(n) == null);   // 10-29 기술 소켓
+    const used = names.reduce((a, n) => a + (mskOf(n) || 0), 0), el = $("m-sock-line"), base = `최대 화력 ${g.fp.v} → ${g.fp.g}`;
+    let t, cls = "note";
+    if (g.n == null) { t = `기술 소켓 — ${base} · 받는 소켓 없음 (${g.why})`; cls += " warn"; }
+    else { t = `기술 소켓 ${mprN(used)} / ${g.n} (프라이드 ${g.col} · ${base}) · 남는 소켓 ${mprN(g.n - used)}`; if (used > g.n + 1e-9) { t = "⚠ 소켓 넘음 — " + t; cls += " err"; } }
+    if (MSK.size && miss.length) t += ` · 소켓 값이 없는 기술: ${miss.join(", ")}`;
+    el.textContent = t; el.className = cls; }
   renderForms();
   updateMonOut();
 }
@@ -2910,7 +2955,8 @@ $("ver").textContent = `기술 ${D.moves.length.toLocaleString()} · 특성 ${D.
 loadTableCache(); loadPhrCache();
 renderMon(); renderTr(); setTab(S.tab === "tr" ? "tr" : "mon"); monFoldLabel();
 fromGame(); window.addEventListener("hashchange", fromGame);
-syncSheet(false); syncPhrases(false); mprShowSrc(); mprSync(false);
+syncSheet(false); syncPhrases(false); mprShowSrc(); mprSync(false); mskShowSrc(); mskSync();
+$("m-sock-sync").addEventListener("click", () => mskSync());
 window.__oremas = { parseMon, buildMon, parseTrainers, buildTrainer, qualityType, lint, sortTags, addTag, defaultsFrom, fillForm, compose, slotToks, phrasesFromRows, parseCSV, tableFromRows, autoExpGrant, sansikFill, sansikParse, SANS_TB, get TB() { return TB; }, get S() { return S; }, switchMon, startNew, monQ, expOk, tacOk, breedAA, privOk, potRuleWarns, renderMon, aptList };
 </script>
 
