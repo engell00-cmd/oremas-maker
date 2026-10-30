@@ -171,6 +171,9 @@ table.col tr.open td{background:var(--surface2)}
         <div style="grid-column:1/-1;display:flex;gap:6px;align-items:center;font-size:12px;line-height:1.4;color:var(--muted)"><span id="zk-src" class="zk-src" style="flex:1;min-width:0"></span><button type="button" id="zk-sync" style="flex:none;font-size:12px;padding:4px 8px">↻ 시트에서 다시 받기</button></div></div>
       <div class="field" id="f-role" hidden><span id="role-src" style="grid-column:1/-1;order:9;font-size:12px;line-height:1.4;color:var(--muted)"></span><label for="role">역할</label>
         <select id="role"><option value="">랜덤</option><option value="lead">선발</option><option value="rot">회전역 (어시스트·인챈터)</option><option value="killer">킬러</option><option value="ace">에이스</option><option value="avenger">어벤져</option><option value="vanilla">바닐라</option></select></div>
+      <div class="field" id="f-party" hidden><label for="party">같은 파티</label>
+        <select id="party"><option value="">비교 안 함</option></select>
+        <div class="note" style="grid-column:1/-1;margin:0">고르면 그 트레이너의 다른 포켓몬(모은 포켓몬)과 같은 효과는 안 넣어요 (대원칙 3)</div></div>
       <div class="field"><label for="habitat">서식지</label><select id="habitat"></select></div>
       <div class="field"><label for="motif">모티프</label><select id="motif"></select></div>
       <div class="field"><label for="person">성격</label><select id="person"></select></div>
@@ -470,7 +473,8 @@ function g8Cands(types,tier,mode,g,st,max){
     const h=c[0]>=0?COMBO.H[c[0]]:null, e=COMBO.E[c[3]];
     if(wild&&((h&&h[2]==='t')||e[3]==='t'))continue;
     if(h&&h[0]==='T032'&&types.length!==1)continue;
-    const r=g8Fill(c,types,st||{atk:1,spa:1},g); if(!r||seen.has(r.desc))continue; seen.add(r.desc);
+    const r=g8Fill(c,types,st||{atk:1,spa:1},g); if(!r)continue;
+    r.desc=p30Heal(p30Prob(r.desc)); if(seen.has(r.desc)||p30Bad(r.desc)||P30_PARTY.has(p30Sig(r.desc)))continue; seen.add(r.desc);   // 10-30 대원칙 5 · HP · 3
     if(tier<=2&&STRONG.test(r.desc))continue;
     if((wild?EXC_WILD:EXC_TRAINER).test(r.desc)||BAN_RECIPE.test(r.desc))continue;
     const fam=famOf(r.desc);
@@ -493,19 +497,24 @@ DATA.POOL=g8DvPool();
 const G8_ZSUF={power:['의 송곳니','의 칼'],crit:['의 눈','의 감'],speed:['의 손놀림','의 잔재주'],status:['의 포자','의 독기'],defense:['의 비늘','의 껍질'],
   heal:['의 샘','의 숨'],statup:['의 기세','의 숨결'],extra:['의 춤','의 연타'],grant:['의 재주','의 문양'],switch:['의 걸음','의 날개'],hazard:['의 가시','의 덫'],
   foedown:['의 으름장','의 눈빛'],pierce:['의 송곳','의 뿔'],acc:['의 시선','의 겨냥'],other:['의 기운','의 손']};
-function g8Zok(types,st,moves,kjPots,motif,avoid,maxV,growth){
+function g8Zok(types,st,moves,kjPots,motif,avoid,maxV,growth,ab){
   const fams=new Set(kjPots.map(p=>famOf(p.desc))); const kn=new Set(kjPots.map(p=>p.desc));
   const sel=($('zksrc')&&$('zksrc').value)||'mix';
   const zt=maxV?Math.min(maxV,5):3;
   const okF=f=>f==='other'||!fams.has(f);   // 계제와 효과 종류 겹치지 않게 (사용자 10-16 15:15)
   const fromEx=()=>{const c=[];for(const [n,s,d] of ZOKEX){if(d===avoid||kn.has(d))continue;if(!okF(famOf(d)))continue;
       if(EXC_TRAINER.test(d))continue;const fit=fitSentence(d,types,'trainer',5);if(!fit)continue;const v=potValue(d,growth);if(v.lockBad||(maxV&&v.v>maxV))continue;
-      c.push({name:n,desc:d,move:fit.need.find(x=>!moves.includes(x))||'',v:v.v,src:'(속별 예시 · 소켓 '+s+')'});}return c;};
+      if(P30_PARTY.has(p30Sig(d)))continue;
+      c.push({name:n,desc:d,move:fit.need.find(x=>!moves.includes(x))||'',v:v.v,sock:+s,src:'(속별 예시 · 소켓 '+s+')'});}return c;};
   const fromNew=()=>{const c=[];for(const x of g8Cands(types,5,'trainer',null,st,900)){const d=x.o.s;if(d===avoid||kn.has(d)||!okF(x.fam))continue;
       const v=potValue(d,growth);if(v.lockBad||v.v>6||(maxV&&v.v>maxV))continue;const roots=MOT[motif]?MOT[motif][2]:['속'];
-      c.push({name:R(roots)+R(G8_ZSUF[x.fam]||G8_ZSUF.other),desc:d,move:x.fit.need.find(m=>!moves.includes(m))||'',v:v.v,src:'(속별 · 구문 DB 조합)'});}return c;};
+      c.push({name:R(roots)+R(G8_ZSUF[x.fam]||G8_ZSUF.other),desc:d,move:x.fit.need.find(m=>!moves.includes(m))||'',v:v.v,sock:v.v<=3?0.5:1,src:'(속별 · 구문 DB 조합)'});}return c;};
   const order=sel==='ex'?[fromEx,fromNew]:sel==='new'?[fromNew,fromEx]:(Math.random()<0.5?[fromEx,fromNew]:[fromNew,fromEx]);
-  for(const f of order){const c=f();if(!c.length)continue;c.sort((a,b)=>Math.abs(a.v-zt)-Math.abs(b.v-zt));const near=c.filter(x=>Math.abs(x.v-zt)<=Math.abs(c[0].v-zt)+1);return R(near.slice(0,12));}
+  // 10-30 대원칙 6: 속별은 늘 계제보다 약하게 = 소켓 0~0.5 먼저 · 콘셉트(특성 이름 · 특성 효과 낱말 · 타입)와 맞는 것 먼저 · 계제와 동떨어져도 됨
+  const abT=ab&&AB[ab]?tokens(AB[ab]).theme:new Set();
+  const cpt=x=>(ab&&x.desc.includes(ab)?3:0)+Math.min(2,[...tokens(x.desc).theme].filter(w=>abT.has(w)&&!KT[w]).length)+(types.some(t=>x.desc.includes('「'+TK[t]+'」'))?1:0);
+  const rank=x=>(x.sock<=0.5?0:10)-cpt(x)+0.5*Math.abs(x.v-zt);
+  for(const f of order){const c=f();if(!c.length)continue;c.sort((a,b)=>rank(a)-rank(b));const near=c.filter(x=>rank(x)<=rank(c[0])+1);return R(near.slice(0,12));}
   const z=genZok(types,st,moves,kjPots,motif,avoid,maxV,growth); if(z)z.src='(속별 틀)'; return z;
 }
 
@@ -932,6 +941,7 @@ function genSentences(types,tier,k,ep,mode,g,usedNouns,chosen0,st){
     if(potValue(c.o.s,false).lockBad)continue;
     const ff=c.fam; if(ff!=='other'&&(chosen0||[]).some(p=>famOf(p.desc)===ff))continue;
     if(PROB.test(c.o.s)&&(chosen0||[]).some(p=>PROB.test(p.desc)))continue;
+    {const kk=p30Key(c.o.s);if(kk&&(chosen0||[]).filter(p=>p30Key(p.desc)===kk).length>=p30SameMax((chosen0||[]).length+k,typeof M!=='undefined'&&M&&M.grow==='A'))continue;}   // 10-30 대원칙 2
     cands.push(c);
   }
   cands=shuffle(cands);
@@ -1024,6 +1034,35 @@ function keyOf(t){
 const KEY_KO={foerevenge:'상대 죽어내밀기',ace:'「이때다!」',revenge:'죽어내밀기 등장',lead:'선발 등장',last:'최후의 1체',fullhp:'HP 가득',lowhp:'HP 낮을 때',critd:'급소에 맞았을 때',scan:'데이터 해석',hit:'공격을 받았을 때',ko:'쓰러트렸을 때',first:'먼저 행동',later:'나중에 행동',down:'능력 감소',indirect:'공격 이외 대미지',protect:'방어로 막았을 때',uturn:'유턴',enter:'필드 등장',hz:'설치기',up:'능력 상승'};
 const keyKo=k=>k.startsWith('st:')?'「'+k.slice(3)+'」 상태':(KEY_KO[k]||'');
 const PROB=/저확률|드물게/;
+// ───────── 2026-10-30 대원칙 (claude/potential-principles-1030.md — 사용자 10:51 「종족 · 속별 포텐셜 제작 대원칙」 · 16:06 「(다) 전부 · 깃허브에만」) ─────────
+// 원칙 2 같은 발동 트리거는 2개까지 (육성 A↑ 4계제면 3 · 2계제면 겹치지 않게) / 3 한 파티 안에서 같은 효과 금지 / 5 센 효과는 확률 (제약과 서약)
+// 6 속별 = 콘셉트(특성 등) 우선 · 소켓 0~0.5 먼저 / HP 회복은 빈도로 (매 턴 = 작게 · 기술을 써야 켜지면 1/3 까지)
+const P30_PROB=/저확률|중확률|고확률|드물게|\d할로/;
+let P30_PARTY=new Set();   // 같은 파티 다른 포켓몬 효과 서명 (build 에서 채움)
+const p30Trig=d=>{const x=String(d||'').replace(/^(【[^】]*】)+\/?/,'');const i=x.indexOf('때');return i>0&&i<60?x.slice(0,i+1):'';};
+const p30Key=d=>{const k=keyOf(d);return ['none','cond'].includes(k)?p30Trig(d).replace(/^(자신의|자신이)\s*/,''):k;};
+const p30SameMax=(k,growth)=>k<=2?1:(growth?3:2);
+const p30Sig=d=>{const x=String(d||'').replace(/^(【[^】]*】)+\/?/,'');const t=p30Trig(x);return (t?x.slice(x.indexOf(t)+t.length):x).replace(/\d+(\.\d+)?/g,'#').replace(/\s|\.|。/g,'');};
+// 원칙 5: 쉬운 트리거(등장 · 상태로 만들었을 때 · 기술을 썼을 때 …) + 즉발 화력 → 확률을 붙여 살림 (화염제비 채점 10:55 「먼저 확률로 균형」)
+function p30Prob(desc){
+  if(P30_PROB.test(desc))return desc;
+  const t=p30Trig(desc); if(!t)return desc;
+  const at=desc.indexOf(t)+t.length, eff=desc.slice(at);
+  if(!/필드에 등장했을 때|등장한 턴|상태로 만들었을 때|사용했을 때|내보냈을 때|명중했을 때/.test(t))return desc;
+  const big=/「[^」]* : \+2」|위력을 (강화\()?2배/.test(eff), mid=/「(공격|특공|모든 능력치|임의의 능력치)[^」]* : \+1」|위력을 강화 ?\(1\.(5|33)배\)/.test(eff);
+  if(!big&&!mid)return desc;
+  return desc.slice(0,at)+' '+(big?'저확률로':'중확률로')+' '+eff.trimStart();
+}
+// 원칙 5: 「X」 상태인 상대에게 늘 큰 위력 = 일격필살 게임 → 뺌
+const p30Bad=d=>!p30Trig(d)&&!P30_PROB.test(d)&&/상태인 상대|상대가 「[^」]+」 상태일/.test(d)&&/위력을 (강화 ?\()?(1\.5|2)배/.test(d);
+// HP 회복은 빈도로 (사용자 11:11)
+function p30Heal(desc){
+  const m=desc.match(/「HP : 1\/(\d+)」만큼 회복/); if(!m)return desc;
+  const n=+m[1], t=p30Trig(desc);
+  if((/턴 종료 시|턴 개시 시|매 턴|턴마다/.test(desc)||!t)&&n<16)return desc.replace(m[0],'「HP : 1/16」만큼 회복');
+  if(/」(을|를) 사용했을 때/.test(t)&&n>3)return desc.replace(m[0],'「HP : 1/3」만큼 회복');
+  return desc;
+}
 const BAN_RECIPE=/타입 일치|최초로 내보내는[^.]*2배|모든 능력치 : \+2/;   // 자속 또 강화(4절) · 일번창을 넘는 것(특성 > 포텐셜)
 const LOCK=/검은눈빛|교대할 수 없|도망칠 수 없/;
 // ───────── 10-16 15:45: 포텐셜 강약 = 계제 포인트 (claude/potential-weights-guide.md, (임시) 숫자 포함) ─────────
@@ -1187,14 +1226,18 @@ function genPlan(types,tier,k,ep,mode,g,st,fam,growth){
   const fits=d=>{const r=pv(d);if(r.lockBad||r.v>10)return false;const left=k+1-out.length-1;return spent+r.v<=budget-2*left;};
   const atkW=st.atk>=st.spa?'공격':'특공', defW=st.atk>=st.spa?'방어':'특방';
   const probMax=LEARN.probZero?0:1;
-  const canTake=(desc,f)=>fits(desc)&&!(f!=='other'&&f!=='link'&&usedF.has(f))&&!(PROB.test(desc)&&prob>=probMax)&&!(LOCK.test(desc)&&lock>=1);
+  const maxSame=p30SameMax(k,growth);   // 10-30 대원칙 2
+  const sameOk=d=>{const kk=p30Key(d);return !kk||out.filter(r=>p30Key(r.desc)===kk).length<maxSame;};
+  const selfFeed=d=>{const td=tokens(d);const big=pv(d).v>=6;   // 10-30 대원칙 5: 스스로 쉽게 거는 트리거에 큰 보상 ✘
+    return out.some(r=>{const tr=tokens(r.desc);return (big&&[...td.cons].some(c=>c.startsWith('st:')&&tr.prod.has(c)))||(pv(r.desc).v>=6&&[...tr.cons].some(c=>c.startsWith('st:')&&td.prod.has(c)));});};
+  const canTake=(desc,f)=>fits(desc)&&!(f!=='other'&&f!=='link'&&usedF.has(f))&&!(PROB.test(desc)&&prob>=probMax)&&!(LOCK.test(desc)&&lock>=1)&&sameOk(desc)&&!selfFeed(desc)&&!P30_PARTY.has(p30Sig(desc));
   const take=(row)=>{row.pt=pv(row.desc).v;spent+=row.pt;out.push(row);usedF.add(row.fam);usedN.add(row.noun);if(PROB.test(row.desc))prob++;if(LOCK.test(row.desc))lock++;};
   // ① 역할 기본기
   const tpl=ROLE_TPL[fam]||[];
   const groups={}; for(const t of tpl)if(t.must)(groups[t.must]=groups[t.must]||[]).push(t);
   const tw=x=>(x.w||1)*lw(LEARN.line,x.d.replace('@ATK',atkW).replace('@DEF',defW));
   const wpick=a=>{const tot=a.reduce((s,x)=>s+tw(x),0);let r=Math.random()*tot;for(const x of a){r-=tw(x);if(r<=0)return x}return a[0]};
-  const tplRow=t=>{const d=t.d.replace('@ATK',atkW).replace('@DEF',defW);return {name:ep+'의 '+t.n,noun:t.n,desc:d,need:[],item:'',src:'(직무 틀)',fam:t.f==='link'?'link':famOf(d),key:keyOf(d)}};
+  const tplRow=t=>{const d=p30Heal(t.d.replace('@ATK',atkW).replace('@DEF',defW));return {name:ep+'의 '+t.n,noun:t.n,desc:d,need:[],item:'',src:'(직무 틀)',fam:t.f==='link'?'link':famOf(d),key:keyOf(d)}};
   if(Object.keys(groups).length){for(const gk of Object.keys(groups)){if(out.length>=k-G8R)break;const c=groups[gk].filter(t=>canTake(t.d,t.f==='link'?'link':famOf(t.d)));if(c.length)take(tplRow(gk==='ln'&&Math.random()<0.75?(c.find(x=>x.n==='재생')||wpick(c)):wpick(c)));}}
   else if(tpl.length){const n=Math.max(0,Math.min(k-G8R,fam==='ace'?Math.max(1,k-1):Math.min(k-1,1+Math.floor(Math.random()*2))));for(const t of shuffle(tpl)){if(out.filter(x=>x.src==='(직무 틀)').length>=n)break;if(canTake(t.d,famOf(t.d)))take(tplRow(t));}}
   // ② 후보 문장
@@ -1275,6 +1318,7 @@ function readForm(){
 }
 function build(){
   const f=readForm(); const types=pickTypes(f.h,f.m,f.t1,f.t2);
+  P30_PARTY=f.wild?new Set():p30PartySet();   // 10-30 대원칙 3
   const ep=f.ep0||genEp(f.p,types,f.m); const name=f.name0||genName(f.h,f.m);
   let k=f.wild?TIER[f.tier].kj+(f.boss&&f.tier<4?1:0):(f.grow==='A'?4:3);
   const g8nm=(f.role||'').startsWith('r:')?f.role.slice(2):''; const fam=f.wild?'':(g8nm?(ROLE_FAM_OF[g8nm]||'vanilla'):(f.role||pickRoleFamLearned()));
@@ -1292,7 +1336,7 @@ function build(){
   } else { const rr=g8PickRole(fam,st,g8nm); pots.push({code:0,name:rr.role.name,desc:rr.role.desc}); pots.push({code:1,name:'현대종',desc:'최근에 발견된 새로운 종.'}); if(rr.sub)M_SUB=rr.sub; else M_SUB=null; }
   // 10-16 15:21 사용자: 계제 = 종족 칸만 (속별은 계제 아님). 육성 A 이상 4계제 / 그 아래 3계제
   for(const x of kj)pots.push({code:4,name:x.name,desc:x.desc,need:x.need,src:x.src});
-  if(!f.wild){const z=g8Zok(types,st,mv,kj,f.m,'',Math.max(1,plan.budget-plan.spent),f.grow==='A');if(z){pots.push({code:5,name:z.name,desc:z.desc,src:z.src||'(속별 틀)'});if(z.move&&!mv.includes(z.move))mv.push(z.move)}}
+  if(!f.wild){const z=g8Zok(types,st,mv,kj,f.m,'',Math.max(1,plan.budget-plan.spent),f.grow==='A',ab);if(z){pots.push({code:5,name:z.name,desc:z.desc,src:z.src||'(속별 틀)'});if(z.move&&!mv.includes(z.move))mv.push(z.move)}}
   if(f.wild)pots.push({code:13,name:'투쟁 본능',desc:'야생일 때 저확률로 상대의 공격을 무효화한다.'});
   else if(M_SUB)pots.push({code:13,name:M_SUB.name,desc:M_SUB.desc});
   if(lab)prdFit(st,lab,{moves:mv,pots,ab},fam,CAP[f.tier]+(f.boss?15:0));   // 기술·포텐셜·특성이 정해진 뒤 선공 하한·쌍두까지 넣어 다시 맞춤
@@ -1349,7 +1393,7 @@ function renderPots(){
     const ni=d.querySelector('input'), ta=d.querySelector('textarea'); ni.value=p.name; ta.value=p.desc;
     ni.oninput=()=>{p.name=ni.value;renderOut()}; ta.oninput=()=>{p.desc=ta.value;p.src='(직접 고침)';renderOut()};
     const [b1,b2]=d.querySelectorAll('button');
-    b1.onclick=()=>{ if(p.code===5){const z=g8Zok(M.types,M.stats,M.moves.filter(Boolean),M.pots.filter(q=>q.code===4),M.m,p.desc,0,M.grow==='A');if(!z){toast('맞는 속별이 더 없어요');return}Object.assign(p,{name:z.name,desc:z.desc,src:z.src||'(속별 틀)'});if(z.move&&!M.moves.includes(z.move))M.moves.push(z.move);renderMoves();renderPots();renderOut();return}
+    b1.onclick=()=>{ if(p.code===5){const z=g8Zok(M.types,M.stats,M.moves.filter(Boolean),M.pots.filter(q=>q.code===4),M.m,p.desc,0,M.grow==='A',M.ability);if(!z){toast('맞는 속별이 더 없어요');return}Object.assign(p,{name:z.name,desc:z.desc,src:z.src||'(속별 틀)'});if(z.move&&!M.moves.includes(z.move))M.moves.push(z.move);renderMoves();renderPots();renderOut();return}
       if(p.code!==4){toast('계제·속별 줄만 다시 굴려요');return}
       const nouns=M.pots.filter(q=>q.code===4&&q!==p).map(q=>q.name.split('의 ').pop());
       const r=genSentences(M.types,M.tier,1,M.ep,M.mode,M.g,nouns,M.pots.filter(q=>q.code===4&&q!==p),M.stats)[0]; if(!r){toast('맞는 문장이 더 없어요');return}
@@ -1412,7 +1456,7 @@ function fillGval(){
   if(k==='item'){const kinds=[...new Set(DATA.ITEMS.map(i=>i.kind))];for(const kd of kinds){const og=document.createElement('optgroup');og.label=kd;for(const i of DATA.ITEMS.filter(x=>x.kind===kd))og.append(new Option(i.name,i.name));s.append(og)}}
 }
 $('gkind').onchange=fillGval;
-$('mode').onchange=()=>{const w=$('mode').value==='wild';$('f-tier').hidden=!w;$('f-power').hidden=w;$('f-grow').hidden=w;$('f-role').hidden=w;$('f-zksrc').hidden=w;$('level').placeholder=w?'비우면 자동':'비우면 100'};
+$('mode').onchange=()=>{const w=$('mode').value==='wild';$('f-tier').hidden=!w;$('f-power').hidden=w;$('f-grow').hidden=w;$('f-role').hidden=w;$('f-zksrc').hidden=w;$('f-party').hidden=w;$('level').placeholder=w?'비우면 자동':'비우면 100'};
 $('gen').onclick=build;
 $('re-stats').onclick=()=>{if(M.pride&&!M.imported){M.stats=prdGen(M.types,M.tier,M.boss,M.role||'',M.pride,M.mode==='wild');prdFit(M.stats,M.pride,prdCtx(M),M.role||'',prdCap(M));renderStats();renderOut();return}M.stats=M.mode==='wild'||M.imported?enforceA(genStats(M.types,M.tier,M.boss),''):genStatsRole(M.types,M.tier,M.boss,M.role||'');renderStats();renderOut()};
 $('re-ab').onclick=()=>{M.ability=genAbility(M.types,M.pots.filter(p=>p.code===4));renderAbility();renderOut()};
@@ -1611,8 +1655,16 @@ function renderCol(){
   $('tab-count').textContent=ROWS.length||'';
   const roles=[...new Set(ROWS.map(r=>r.role).filter(Boolean))].sort();
   const rs=$('col-role'),cur=rs.value; rs.innerHTML='<option value="">역할 전부</option>'+roles.map(r=>'<option>'+esc(r)+'</option>').join(''); rs.value=roles.includes(cur)?cur:'';
-  fillWho(); renderColSum(); renderColList();
+  fillWho(); p30FillParty(); renderColSum(); renderColList();
 }
+// 10-30 대원칙 3: 같은 파티 = 모은 포켓몬(ROWS)의 출처 칸 앞 이름
+const p30Owner=r=>String(r.src||'').split(/\s*·\s*/)[0].trim();
+function p30FillParty(){const ps=$('party');if(!ps)return;const cur=ps.value;const ns=[...new Set(ROWS.map(p30Owner).filter(Boolean))].sort();
+  ps.innerHTML='<option value="">비교 안 함</option>'+ns.map(n=>'<option>'+esc(n)+' ('+ROWS.filter(r=>p30Owner(r)===n).length+'마리)</option>').join('');
+  const keep=[...ps.options].find(o=>o.value===cur);if(keep)ps.value=cur;}
+function p30PartySet(){const v=($('party')&&$('party').value)||'';const out=new Set();if(!v)return out;const n=v.replace(/\s*\(\d+마리\)$/,'');
+  for(const r of ROWS)if(p30Owner(r)===n)for(const q of (r.pots||[]))if(q&&q.desc&&!/^(최근에 발견|야생일 때)/.test(q.desc))out.add(p30Sig(q.desc));
+  return out;}
 function fillWho(){
   const ws=$('col-who'),cur=ws.value; const ids=[...new Set(ROWS.map(r=>r.by).filter(Boolean))];
   ws.innerHTML='<option value="">넣은 사람 전부</option>'+ids.map(id=>'<option value="'+esc(id)+'">'+esc(whoName(id))+'</option>').join(''); ws.value=ids.includes(cur)?cur:'';
