@@ -315,6 +315,8 @@ button.b.big { font-size: 19px; padding: 16px 14px; border-radius: 12px; width: 
 .nowbar { display: flex; gap: 8px; align-items: center; margin: 4px 0 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
 .nowbar .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; color: var(--sub); }
 .nowbar .nm b { color: var(--fg); }
+.nowbar { flex-wrap: wrap; }   /* 347: 좁은 폭이면 [본가 불러오기] 가 다음 줄로 */
+#m-old2 { flex: none; }
 #view-mon.fresh > details, #view-mon.fresh > .nowbar { display: none; }
 #view-mon:not(.fresh) > .hero, #view-mon:not(.fresh) > .sheetcard { display: none; }
 .sheetcard { border: 1px solid var(--neon); border-radius: 14px; padding: 14px 16px; margin: 0 0 12px; display: grid; gap: 10px; grid-template-columns: minmax(0, 1fr); background: var(--panel); }
@@ -363,7 +365,7 @@ button.b.big { font-size: 19px; padding: 16px 14px; border-radius: 12px; width: 
       <button class="b pri" id="h-tbl-sync">↻ 시트에서 다시 받기</button>
       <div class="sh-n">페이지를 열 때마다 알아서 받아요. 페이지를 켜 둔 채 시트를 고쳤으면 눌러 주세요.</div>
     </div>
-    <div class="nowbar"><button class="b sm ghost home" id="m-home">← 처음</button><span class="nm" id="m-now"></span><button class="b sm fold" id="m-fold">모두 접기</button><button class="b gold" id="m-new2">＋ 새 포켓몬</button></div>
+    <div class="nowbar"><button class="b sm ghost home" id="m-home">← 처음</button><span class="nm" id="m-now"></span><button class="b sm fold" id="m-fold">모두 접기</button><button class="b gold" id="m-new2">＋ 새 포켓몬</button><button class="b" id="m-old2" title="본가 포켓몬(올드 타입)을 새 칸으로 불러와요 — 지금 고치던 포켓몬은 보관함에 남아요">본가 불러오기</button></div>
     <div id="m-party" class="partybar"></div>
     <details class="box" id="m-in">
       <summary><h2 class="sec">줄 읽어 오기</h2><span class="hint">게임·시트·생성기의 붙여넣기 한 줄</span></summary>
@@ -1636,6 +1638,7 @@ $("m-home").addEventListener("click", () => { S.monHome = true; refreshFresh(); 
 $("m-start-paste").addEventListener("click", () => { S.monStarted = true; S.monHome = false; refreshFresh(); $("m-in").open = true; $("m-in").scrollIntoView({ behavior: "smooth", block: "start" }); setTimeout(() => $("m-in-text").focus(), 300); });
 // 고치던 포켓몬이 있으면 두 번 눌러야 비움 (실수 방지)
 $("m-new2").addEventListener("click", () => startNew());
+$("m-old2").addEventListener("click", () => openOldPick());   // 347
 // 342f: 지금 고치는 포켓몬 지우기 (두 번 누름 · 3초 지나면 풀림) → 같은 트레이너의 다른 포켓몬, 없으면 빈 칸
 $("m-del").addEventListener("click", (ev) => {
   const b = ev.currentTarget;
