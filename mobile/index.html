@@ -218,6 +218,28 @@ details.tr-card.orphan > summary .trn { color: var(--sub); }
 #mac-frag .gm .st.on { color: var(--ok, #7fe08a); }
 #mac-frag .gm .st.bad { color: var(--no, #ff6b6b); }
 #oremas-canvas { position: fixed; left: -20px; top: -20px; width: 2px; height: 2px; opacity: 0; pointer-events: none; }
+/* 384 조각 판정 카드 */
+#mac-frag .fsum { display: flex; flex-wrap: wrap; gap: 6px; font-size: 12.5px; }
+#mac-frag .fsum span { border: 1px solid var(--line); border-radius: 12px; padding: 2px 9px; }
+#mac-frag .fsum .k-ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 45%, transparent); }
+#mac-frag .fsum .k-no { color: var(--no); border-color: color-mix(in srgb, var(--no) 45%, transparent); }
+#mac-frag .fsum .k-unk { color: var(--part); border-color: color-mix(in srgb, var(--part) 45%, transparent); }
+#mac-frag .fcard { border: 1px solid var(--line); border-left: 4px solid var(--ok); border-radius: 10px; padding: 7px 9px; background: color-mix(in srgb, var(--panel) 85%, black); display: grid; gap: 6px; }
+#mac-frag .fcard.no { border-left-color: var(--no); } #mac-frag .fcard.unk { border-left-color: var(--part); }
+#mac-frag .fcard .fh { font-size: 12px; color: var(--sub); display: flex; gap: 6px; align-items: center; }
+#mac-frag .fcard .fh b { font-size: 14px; }
+#mac-frag .fcard.ok .fh b { color: var(--ok); } #mac-frag .fcard.no .fh b { color: var(--no); } #mac-frag .fcard.unk .fh b { color: var(--part); }
+#mac-frag .chips { display: flex; flex-wrap: wrap; gap: 5px; }
+#mac-frag .pchip { display: inline-grid; gap: 1px; border: 1.5px solid; border-radius: 9px; padding: 3px 8px 4px; max-width: 100%; background: rgba(0,0,0,.18); }
+#mac-frag .pchip .kd { font-size: 10.5px; letter-spacing: .02em; opacity: .85; }
+#mac-frag .pchip .tx { font-size: 13.5px; color: var(--fg); line-height: 1.35; word-break: keep-all; overflow-wrap: anywhere; }
+#mac-frag .pchip.ok { border-color: color-mix(in srgb, var(--ok) 60%, transparent); } #mac-frag .pchip.ok .kd { color: var(--ok); }
+#mac-frag .pchip.no { border-color: var(--no); background: color-mix(in srgb, var(--no) 12%, transparent); } #mac-frag .pchip.no .kd { color: var(--no); }
+#mac-frag .pchip.unk { border-color: var(--part); border-style: dashed; } #mac-frag .pchip.unk .kd { color: var(--part); }
+#mac-frag .pfix { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 12.5px; padding: 4px 0 0 6px; border-top: 1px dashed var(--line); }
+#mac-frag .pfix .why { color: var(--sub); }
+#mac-frag .pfix .who { font-weight: 700; }
+#mac-frag .pfix .who.no { color: var(--no); } #mac-frag .pfix .who.unk { color: var(--part); }
 #mac-frag .fx { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding-left: 12px; font-size: 13px; }
 .prow .d { color: var(--sub); font-size: 12.5px; }
 .built { background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 10px; min-height: 44px; }
@@ -3120,20 +3142,31 @@ function renderFrag() {
   const text = $("mac-work").value; if (text === FRAG_LAST) return; FRAG_LAST = text;
   const box = $("mac-frag"); FRAG_FX = [];
   if (!text.trim()) { box.innerHTML = gameHead(); return; }
-  const res = FCX.analyze(text), MK = { ok: "✔", no: "✘", unk: "?" }, rows = [];
-  const lines = res.map((r) => `<div class="fl"><span class="${r.st === "ok" ? "fr-ok" : r.st === "no" ? "fr-no" : "fr-unk"}" style="text-decoration:none">${MK[r.st]}</span> ${r.pieces.map((p) => `<span class="fr-${p.st}">${esc(p.text)}</span>`).join(" ")}</div>`);
-  for (const r of res) for (const p of r.pieces) {
-    if (p.st === "ok" || rows.length >= FRAG_MAX) continue;
-    const fx = p.sugg.map((s) => { if (!s.fill) return `<span class="note">ⓘ ${esc(s.why)}</span>`; const k = FRAG_FX.push({ line: r.line, piece: s.whole ? s.sentence : p.text, to: s.fill }) - 1; return `<button class="xc" data-fx="${k}" title="${esc(s.why)}">${s.whole ? "⇒ 통째로 「" : "혹시 「"}${esc(s.fill)}」? 바꾸기</button>`; }).join("");
-    rows.push(`<div class="fx"><span class="${p.st === "no" ? "fr-no" : "fr-unk"}" style="text-decoration:none">${p.st === "no" ? "✘" : "?"} 「${esc(p.text)}」</span><span class="note">${esc(p.note)}</span>${fx}</div>`);
-  }
+  // 384: 문장마다 카드 · 조각마다 칩 (읽음 초록 / 못 읽음 빨강 / 붙이면 안 읽힘 노랑) · 고치기 단추는 그 조각 바로 아래
+  const res = FCX.analyze(text), MK = { ok: "✔", no: "✘", unk: "?" }, rows = [], KD = { tag: "태그", head: "타이밍 · 조건", prob: "확률", eff: "효과" };
+  const ST = { ok: "읽음", no: "못 읽음", unk: "확인" }, cnt = { ok: 0, no: 0, unk: 0 };
+  let fixN = 0;
+  const lines = res.map((r, ri) => {
+    const fixes = [];
+    const chips = r.pieces.map((p) => {
+      cnt[p.st] = (cnt[p.st] || 0) + 1;
+      if (p.st !== "ok" && fixN < FRAG_MAX * 2) {
+        fixN++;
+        const fx = (p.sugg || []).map((s) => { if (!s.fill) return `<span class="note">ⓘ ${esc(s.why)}</span>`; const k = FRAG_FX.push({ line: r.line, piece: s.whole ? s.sentence : p.text, to: s.fill }) - 1; return `<button class="xc" data-fx="${k}" title="${esc(s.why)}">${s.whole ? "⇒ 통째로 「" : "혹시 「"}${esc(s.fill)}」? 바꾸기</button>`; }).join("");
+        fixes.push(`<div class="pfix"><span class="who ${p.st}">${MK[p.st]} ${esc(KD[p.kind] || "조각")}</span><span class="why">${esc(p.note || (p.st === "no" ? "배틀이 못 읽는 조각이에요" : "구문 DB에 없는 꼴 — 게임에서 확인"))}</span>${fx}</div>`);
+      }
+      return `<span class="pchip ${p.st}" title="${esc(ST[p.st] || "")}"><span class="kd">${MK[p.st]} ${esc(KD[p.kind] || "조각")}</span><span class="tx">${esc(p.text)}</span></span>`;
+    }).join("");
+    return `<div class="fcard ${r.st}"><div class="fh"><b>${MK[r.st]}</b>문장 ${ri + 1} · ${r.st === "ok" ? "배틀이 그대로 읽어요" : r.st === "no" ? "못 읽는 조각이 있어요" : (GAME.ready ? "조각은 읽히는데 이렇게 붙이면 안 읽혀요" : "구문 DB에 없는 꼴이 있어요 — 게임 판정으로 확인")}${r.combo ? " (붙인 꼴)" : ""}</div><div class="chips">${chips}</div>${fixes.join("")}</div>`;
+  });
+  const sum = `<div class="fsum"><span class="k-ok">✔ 읽음 ${cnt.ok}</span><span class="k-no">✘ 못 읽음 ${cnt.no}</span><span class="k-unk">? 확인 ${cnt.unk}</span></div>`;
   for (const ni of FC.nameIssues(text)) {
     if (rows.length >= FRAG_MAX) break;
     const k = ni.near ? FRAG_FX.push({ name: ni.name, to: ni.near }) - 1 : -1;
     rows.push(`<div class="fx"><span class="fr-unk" style="text-decoration:none">? 『${esc(ni.name)}』</span><span class="note">아는 이름에 없어요 (오타?)</span>${k >= 0 ? `<button class="xc" data-fx="${k}">혹시 『${esc(ni.near)}』? 바꾸기</button>` : ""}</div>`);
   }
   const legend = GAME.ready ? "✔ 배틀이 읽는 문장 · ✘ 못 읽는 조각 · ? 조각은 읽히는데 이렇게 붙이면 안 읽힘 (게임 해석기 판정)" : "✔ 구문 DB의 읽히는 꼴 · ✘ 못 읽는 꼴 · ? DB에 없는 꼴 (게임에서 확인)";
-  box.innerHTML = gameHead() + `<div class="grp-h">조각 판정 <span>${legend}</span></div>` + lines.join("") + rows.join("");
+  box.innerHTML = gameHead() + `<div class="grp-h">조각 판정 <span>${legend}</span></div>` + sum + lines.join("") + rows.join("");
 }
 $("mac-frag").addEventListener("click", (e) => { if (e.target.closest("#mac-game")) { GAME.load(); FRAG_LAST = null; renderFrag(); } });
 $("mac-frag").addEventListener("click", (e) => {
