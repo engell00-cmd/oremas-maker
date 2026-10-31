@@ -332,12 +332,27 @@ button.b.big { font-size: 19px; padding: 16px 14px; border-radius: 12px; width: 
 .nowbar .home { flex: none; }
 .hero .resume { width: 100%; font-size: 16px; padding: 12px 14px; border-radius: 10px; white-space: normal; }
 @media (max-width: 380px) { .g3 { grid-template-columns: repeat(2, 1fr); } }
+/* 381 계정 · 공유 */
+.brand .accb { margin-left: -4px; align-self: center; font-weight: 700; max-width: 34vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 560px) { .brand .ver { order: 5; flex-basis: 100%; } .brand .accb { order: 2; margin-left: auto; max-width: 25vw; padding-left: 8px; padding-right: 8px; font-size: 13px; } .brand { gap: 8px; } .brand h1 { font-size: 19px; } .brand #rb-open { order: 3; margin-left: 0; } }
+.brand .accb.on { border-color: var(--ok); color: var(--ok); }
+.brand .accb.dirty { border-color: var(--gold); color: var(--gold); }
+.brand .accb.bad { border-color: var(--no); color: var(--no); }
+.accm { position: fixed; inset: 0; z-index: 80; background: rgba(0,0,0,.6); display: flex; align-items: flex-start; justify-content: center; padding: 60px 12px 12px; overflow: auto; }
+.accm .accbox { background: var(--panel); border: 1px solid var(--neon); border-radius: 14px; width: 100%; max-width: 420px; padding: 16px; display: grid; gap: 10px; box-shadow: 0 0 24px rgba(95,212,255,.25); }
+.accm h2 { margin: 0; font: 20px/1.2 var(--f-title); color: var(--gold); }
+.accm .note { color: var(--sub); font-size: 13px; line-height: 1.5; }
+.accm input { width: 100%; }
+.accm .row { display: flex; gap: 8px; flex-wrap: wrap; }
+.accm a.b { text-decoration: none; display: inline-flex; align-items: center; }
+.share381 { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 8px; }
+.share381 select { flex: 1; min-width: 140px; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 
 <div class="wrap">
   <header class="top">
-    <div class="brand"><h1>오레마스 모바일 편집</h1><span class="ver" id="ver"></span><button class="b sm ghost" id="rb-open" title="룰북 · 용어집" aria-label="룰북 · 용어집 열기">？</button></div>
+    <div class="brand"><h1>오레마스 모바일 편집</h1><span class="ver" id="ver"></span><button class="b sm ghost" id="rb-open" title="룰북 · 용어집" aria-label="룰북 · 용어집 열기">？</button><button class="b sm accb" id="acc-open" title="계정 — 로그인하면 보관함이 서버에도 저장돼요">로그인</button></div>
     <div class="tabs" role="tablist">
       <button role="tab" id="tab-mon" aria-selected="true" data-tab="mon">포켓몬</button>
       <button role="tab" id="tab-tr" aria-selected="false" data-tab="tr">트레이너</button>
@@ -476,6 +491,7 @@ button.b.big { font-size: 19px; padding: 16px 14px; border-radius: 12px; width: 
       <div class="inner">
         <textarea id="m-out-text" class="mono" rows="5" readonly aria-label="만든 붙여넣기 줄"></textarea>
         <div class="msg" id="m-out-msg"></div>
+        <div class="share381"><button class="b" id="m-share">공유에 올리기</button><span class="msg" id="m-share-msg"></span></div>
         <div class="note">줄에 안 들어가는 것: 성별(게임 붙여넣기 창에서 고름) · 그림 · 2·3번째 전용 · 폼 · 기능확장 · 발동 문구 · 개체값 · 소지품. 같은 포켓몬을 덮어쓰면 게임이 이것들을 그대로 둬요.</div>
       </div>
     </details>
@@ -499,6 +515,9 @@ button.b.big { font-size: 19px; padding: 16px 14px; border-radius: 12px; width: 
       <div class="inner">
         <textarea id="t-out-text" class="mono" rows="4" readonly aria-label="만든 트레이너 줄"></textarea>
         <div class="msg" id="t-out-msg"></div>
+        <div class="share381"><select id="t-share-pick" aria-label="공유할 트레이너"></select><button class="b" id="t-share">공유에 올리기</button></div>
+        <div class="msg" id="t-share-msg"></div>
+        <div class="note">트레이너를 올리면 그 트레이너의 포켓몬도 전부 같이 올라가요.</div>
         <div class="note">게임에서 넣으면: 있는 트레이너는 자질을 바꾸고, 같은 이름의 고유는 새 내용으로 · 새 고유는 덧붙여요. 여기서 지운 고유는 게임에서 안 지워지니 게임에서 지워 주세요. 그림 · SP · 포켓몬 · 소속 · 랭크는 그대로예요.</div>
       </div>
     </details>
@@ -508,6 +527,22 @@ button.b.big { font-size: 19px; padding: 16px 14px; border-radius: 12px; width: 
 <div class="dock" id="dock"><div class="in">
   <button class="b" id="dock-in">줄 읽어 오기</button>
   <button class="b gold" id="dock-copy">게임에 넣기 (줄 복사)</button>
+</div></div>
+<div class="accm" id="acc-m" hidden><div class="accbox" role="dialog" aria-labelledby="acc-h">
+  <div class="row" style="justify-content:space-between;align-items:center"><h2 id="acc-h">계정</h2><button class="b sm ghost" id="acc-x">닫기</button></div>
+  <div id="acc-in" style="display:grid;gap:10px">
+    <div class="note">게임 <b>[PVP]</b>와 같은 계정이에요 (닉네임 · 비밀번호). 로그인하면 보관함이 서버에도 저장돼서 휴대폰 · PC 어디서 열어도 같아요. 이 기기에 있던 포켓몬 · 트레이너는 그대로 합쳐져요.</div>
+    <input id="acc-nick" autocomplete="username" placeholder="닉네임 (2~12자)" maxlength="12">
+    <input id="acc-pw" type="password" autocomplete="current-password" placeholder="비밀번호 (4자 이상)" maxlength="64">
+    <div class="row"><button class="b pri" id="acc-login">로그인</button><button class="b" id="acc-signup">새로 가입</button></div>
+  </div>
+  <div id="acc-on" style="display:grid;gap:10px" hidden>
+    <div><b id="acc-nm" style="color:var(--ok);font-size:17px"></b> 로그인 중</div>
+    <div class="note" id="acc-st"></div>
+    <div class="row"><button class="b pri" id="acc-sync">지금 저장</button><a class="b" id="acc-page" target="_blank" rel="noopener">공유 웹페이지 ↗</a><button class="b ghost" id="acc-out">로그아웃</button></div>
+    <div class="note">로그아웃해도 이 기기의 보관함은 그대로 남아요.</div>
+  </div>
+  <div class="msg" id="acc-msg"></div>
 </div></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <datalist id="dl-egg"></datalist>
@@ -1027,7 +1062,7 @@ syncCur();
 for (const e of S.box) normMon(e.mon);
 S.monHome = true; S.trHome = true;   // 페이지를 열면 늘 처음 화면 (고치던 것은 [이어서 고치기]) — 사용자 10-21
 let saveT = 0;
-function save() { syncCur(); clearTimeout(saveT); saveT = setTimeout(() => { syncCur(); try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }, 300); }
+function save() { syncCur(); clearTimeout(saveT); saveT = setTimeout(() => { syncCur(); try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} if (window.accDirty381) window.accDirty381(); }, 300); }   // 381: 로그인했으면 서버에도
 function newMonId() { return "m" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 function curEntry() { return (S.box || []).find((e) => e.id === S.cur) || null; }
 function syncCur() { const e = curEntry(); if (!e) return; e.mon = S.mon; e.tr = S.monTr || ""; e.from = S.monFrom || ""; e.q = S.monQ; }
@@ -2313,7 +2348,7 @@ function renderTr() {
 function updateTrOut() {
   fixCount = 0;
   const lines = S.tr.map(buildTrainer);
-  $("t-out-text").value = lines.join("\n");
+  $("t-out-text").value = lines.join("\n"); if (window.fillTrShare381) fillTrShare381();
   const w = [];
   S.tr.forEach((t, i) => {
     if (!String(t.name).trim()) w.push(`<span class="err">${i + 1}번째 트레이너 이름이 비어 있어 게임이 그 줄을 건너뛰어요</span>`);
@@ -2370,6 +2405,146 @@ $("t-in-read").addEventListener("click", () => {
   const w = ts.flatMap((t) => t.warn.map((x) => t.name + ": " + x));
   $("t-in-msg").innerHTML = `<span class="okc">${ts.length}명을 읽었어요.</span>` + (w.length ? '<ul class="warn">' + w.map((x) => "<li>" + esc(x) + "</li>").join("") + "</ul>" : "");
 });
+
+// ───────── 381 계정 · 서버 보관함 · 공유 (사용자 10-31 15:35) ─────────
+//   서버 = 오레마스 PVP 서버의 https 주소 · 계정 = 게임 PVP 와 같음 · 로그인 안 하면 예전처럼 이 기기에만
+const ACC_API = window.OREMAS_API || "https://oremasgames.duckdns.org/api/acct/";
+const SHARE_PAGE = window.OREMAS_SHARE || "https://oremasgames.duckdns.org/";
+const ACC_KEY = "oremas-mobile-acct-v1";
+let ACC = {}; try { ACC = JSON.parse(localStorage.getItem(ACC_KEY) || "{}") || {}; } catch (e) { ACC = {}; }
+let accReady = false, accT = 0, accBusy = false;
+function accSave() { try { localStorage.setItem(ACC_KEY, JSON.stringify(ACC)); } catch (e) {} }
+async function accCall(what, body) {
+  try { const r = await fetch(ACC_API + what, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }); return await r.json(); }
+  catch (e) { return { ok: false, net: true, err: "서버에 연결하지 못했어요 (인터넷 · 서버 확인)" }; }
+}
+function accData() { syncCur(); return JSON.parse(JSON.stringify(S)); }
+function accFp(d) { return JSON.stringify({ b: (d.box || []).filter((e) => !isBlankMon(e.mon)).map((e) => [e.id, e.tr || "", e.mon, e.q || null]), t: d.tr || [] }); }
+// 합치기: 서버 판 + 이 기기 판 (같은 칸 id · 같은 트레이너 이름이면 이 기기 것) — 지우는 것 없음
+function accMerge(sv, lc) {
+  const out = JSON.parse(JSON.stringify(sv || {}));
+  out.box = Array.isArray(out.box) ? out.box : []; out.tr = Array.isArray(out.tr) ? out.tr : [];
+  const ids = new Map(out.box.map((e, i) => [e.id, i]));
+  for (const e of lc.box || []) { if (isBlankMon(e.mon)) continue; if (ids.has(e.id)) out.box[ids.get(e.id)] = e; else out.box.push(e); }
+  const tn = new Map(out.tr.map((t, i) => [t.name, i]));
+  for (const t of lc.tr || []) { if (tn.has(t.name)) out.tr[tn.get(t.name)] = t; else out.tr.push(t); }
+  const cur = out.box.find((e) => e.id === lc.cur) || out.box.find((e) => e.id === out.cur) || out.box[0];
+  if (cur) { out.cur = cur.id; out.mon = cur.mon; out.monTr = cur.tr || ""; out.monFrom = cur.from || ""; if (cur.q) out.monQ = cur.q; }
+  return out;
+}
+// 서버 판으로 바꾸고 다시 열기
+function accApply(data, rev, at) {
+  ACC.rev = rev; ACC.at = at || ACC.at || ""; ACC.dirty = false; ACC.fp = accFp(data); accSave();
+  try { localStorage.setItem(KEY, JSON.stringify(data)); } catch (e) {}
+  try { sessionStorage.setItem("acc381-note", "서버 보관함을 받았어요"); } catch (e) {}
+  location.reload();
+}
+function accDirty381() {
+  if (!ACC.token || !accReady) return;
+  const fp = accFp(accData());
+  if (fp === ACC.fp && !ACC.dirty) return;
+  ACC.dirty = true; accSave(); accShow();
+  clearTimeout(accT); accT = setTimeout(accPush, 2500);
+}
+window.accDirty381 = accDirty381;
+async function accPush() {
+  if (!ACC.token) return;
+  if (accBusy) { clearTimeout(accT); accT = setTimeout(accPush, 1500); return; }
+  accBusy = true; const d = accData(), fp = accFp(d);
+  const r = await accCall("box_put", { token: ACC.token, base: ACC.rev || 0, data: d });
+  accBusy = false;
+  if (r.ok) { ACC.rev = r.rev; ACC.at = r.at; ACC.fp = fp; ACC.dirty = accFp(accData()) !== fp; ACC.err = ""; }
+  else if (r.conflict) {   // 다른 기기에서 먼저 저장함 → 합쳐서 저장하고 다시 열기
+    const m = accMerge(r.data, d);
+    const r2 = await accCall("box_put", { token: ACC.token, base: r.rev, data: m });
+    if (r2.ok) { try { sessionStorage.setItem("acc381-note", "다른 기기에서 저장한 것과 합쳤어요"); } catch (e) {} accApply(m, r2.rev, r2.at); return; }
+    ACC.err = r2.err || "저장하지 못했어요";
+  }
+  else if (r.auth === false) { ACC.token = ""; ACC.err = r.err; }
+  else ACC.err = r.err || "저장하지 못했어요";
+  accSave(); accShow();
+}
+// 페이지를 열 때 · 로그인했을 때: 서버 판과 맞추기
+async function accReconcile(first) {
+  const r = await accCall("box_get", { token: ACC.token });
+  if (r.auth === false) { ACC.token = ""; ACC.err = r.err; accSave(); accShow(); return; }
+  if (!r.ok) { ACC.err = r.err; accReady = true; accSave(); accShow(); return; }
+  ACC.err = ""; const rev = r.rev || 0, local = accData();
+  const localHas = (local.box || []).some((e) => !isBlankMon(e.mon)) || (local.tr || []).length > 0;
+  if (!r.data) {   // 서버가 비었음 → 이 기기 것을 올림
+    ACC.rev = rev; accReady = true; ACC.fp = ""; ACC.dirty = true; accSave(); await accPush(); return;
+  }
+  if (rev === (ACC.rev || 0) && !first) { accReady = true; accShow(); accDirty381(); return; }
+  if (!first && !ACC.dirty) { accApply(r.data, rev, r.at); return; }   // 이 기기에서 안 고쳤으면 서버 판 그대로
+  if (!localHas) { accApply(r.data, rev, r.at); return; }
+  const m = accMerge(r.data, local);   // 처음 로그인한 기기 · 저장 못 한 것이 있음 → 합침
+  const r2 = await accCall("box_put", { token: ACC.token, base: rev, data: m });
+  if (r2.ok) { try { sessionStorage.setItem("acc381-note", "이 기기의 보관함을 서버 보관함과 합쳤어요"); } catch (e) {} accApply(m, r2.rev, r2.at); return; }
+  ACC.err = r2.err || "합치지 못했어요"; accReady = true; accSave(); accShow();
+}
+function accShow() {
+  const b = $("acc-open"); if (!b) return;
+  b.classList.remove("on", "dirty", "bad");
+  if (!ACC.token) { b.textContent = ACC.err ? "로그인 ⚠" : "로그인"; if (ACC.err) b.classList.add("bad"); }
+  else { b.textContent = (ACC.err ? "⚠ " : ACC.dirty ? "… " : "☁ ") + ACC.nick; b.classList.add(ACC.err ? "bad" : ACC.dirty ? "dirty" : "on"); }
+  $("acc-in").hidden = !!ACC.token; $("acc-on").hidden = !ACC.token;
+  $("acc-nm").textContent = ACC.nick || "";
+  $("acc-st").innerHTML = ACC.err ? '<span class="err">' + esc(ACC.err) + "</span>" : ACC.dirty ? "저장 기다리는 중… (고친 뒤 몇 초 뒤 서버에 저장)" : ACC.at ? "서버에 저장됨 · " + esc(ACC.at) : "서버와 맞추는 중…";
+  $("acc-page").href = SHARE_PAGE;
+}
+function accOpen() { $("acc-msg").textContent = ""; accShow(); $("acc-m").hidden = false; if (!ACC.token) setTimeout(() => $("acc-nick").focus(), 50); }
+$("acc-open").addEventListener("click", accOpen);
+$("acc-x").addEventListener("click", () => ($("acc-m").hidden = true));
+$("acc-m").addEventListener("click", (e) => { if (e.target.id === "acc-m") $("acc-m").hidden = true; });
+async function accEnter(what) {
+  const nick = $("acc-nick").value.trim(), pw = $("acc-pw").value;
+  if (!nick || !pw) { $("acc-msg").innerHTML = '<span class="err">닉네임과 비밀번호를 넣어 주세요</span>'; return; }
+  $("acc-msg").textContent = what === "signup" ? "가입하는 중…" : "로그인하는 중…";
+  const r = await accCall(what, { nick, pw });
+  if (!r.ok) { $("acc-msg").innerHTML = '<span class="err">' + esc(r.err || "실패했어요") + "</span>"; return; }
+  ACC = { nick: r.nick, token: r.token, rev: 0, dirty: false, fp: "", at: "" }; accSave(); $("acc-pw").value = "";
+  $("acc-msg").innerHTML = '<span class="okc">' + (what === "signup" ? "가입했어요! " : "로그인했어요! ") + "보관함을 맞추는 중…</span>";
+  accShow(); await accReconcile(true);
+  $("acc-msg").innerHTML = ACC.err ? '<span class="err">' + esc(ACC.err) + "</span>" : '<span class="okc">보관함을 서버에 저장했어요</span>';
+}
+$("acc-login").addEventListener("click", () => accEnter("login"));
+$("acc-signup").addEventListener("click", () => accEnter("signup"));
+$("acc-pw").addEventListener("keydown", (e) => { if (e.key === "Enter") accEnter("login"); });
+$("acc-sync").addEventListener("click", async () => { ACC.dirty = true; await accPush(); $("acc-msg").innerHTML = ACC.err ? '<span class="err">' + esc(ACC.err) + "</span>" : '<span class="okc">저장했어요</span>'; });
+$("acc-out").addEventListener("click", async () => {
+  if (ACC.dirty) await accPush();
+  accCall("logout", { token: ACC.token }); ACC = {}; accSave(); accShow(); $("acc-msg").innerHTML = '<span class="okc">로그아웃했어요 (이 기기의 보관함은 그대로)</span>';
+});
+// 공유에 올리기
+async function shareUp381(item, btn, msgEl) {
+  if (!ACC.token) { toast("먼저 로그인해 주세요"); accOpen(); return; }
+  btn.disabled = true; const t0 = btn.textContent; btn.textContent = "올리는 중…"; msgEl.textContent = "";
+  const r = await accCall("share_up", { token: ACC.token, item });
+  btn.disabled = false; btn.textContent = t0;
+  if (r.ok) { msgEl.innerHTML = '<span class="okc">공유에 올렸어요 · <a href="' + SHARE_PAGE + '" target="_blank" rel="noopener" style="color:var(--neon)">공유 웹페이지 열기 ↗</a></span>'; toast("공유에 올렸어요"); }
+  else { if (r.auth === false) { ACC.token = ""; ACC.err = r.err; accSave(); accShow(); } msgEl.innerHTML = '<span class="err">' + esc(r.err || "올리지 못했어요") + "</span>"; }
+}
+$("m-share").addEventListener("click", () => {
+  const line = $("m-out-text").value.trim();
+  if (!String(S.mon.name).trim() || !line) { toast("먼저 포켓몬을 만들어 주세요 (이름 · 만든 줄)"); return; }
+  shareUp381({ kind: "mon", name: String(S.mon.name).trim(), line }, $("m-share"), $("m-share-msg"));
+});
+function fillTrShare381() {
+  const sel = $("t-share-pick"), old = sel.value;
+  sel.innerHTML = S.tr.length ? S.tr.map((t) => `<option value="${esc(t.name)}">${esc(t.name)} · 포켓몬 ${trMons(t.name).filter((e) => !isBlankMon(e.mon)).length}</option>`).join("") : '<option value="">트레이너가 없어요</option>';
+  if (S.tr.some((t) => t.name === old)) sel.value = old;
+}
+window.fillTrShare381 = fillTrShare381;
+$("t-share").addEventListener("click", () => {
+  fillTrShare381();
+  const t = S.tr.find((x) => x.name === $("t-share-pick").value);
+  if (!t || !String(t.name).trim()) { toast("올릴 트레이너를 골라 주세요"); return; }
+  const mons = trMons(t.name).filter((e) => !isBlankMon(e.mon) && String(e.mon.name).trim()).map((e) => ({ name: String(e.mon.name).trim(), line: buildMon(e.mon) }));
+  shareUp381({ kind: "trainer", name: t.name, line: buildTrainer(t), mons }, $("t-share"), $("t-share-msg"));
+});
+fillTrShare381(); accShow();
+try { const n = sessionStorage.getItem("acc381-note"); if (n) { sessionStorage.removeItem("acc381-note"); setTimeout(() => toast(n), 600); } } catch (e) {}
+if (ACC.token) accReconcile(false); else accReady = true;
 
 // ───────── 아래 막대 ─────────
 $("dock-in").addEventListener("click", () => { if (S.tab === "mon") { S.monStarted = true; S.monHome = false; refreshFresh(); } const d = S.tab === "mon" ? $("m-in") : $("t-in"); d.open = true; d.scrollIntoView({ behavior: "smooth", block: "start" }); setTimeout(() => (S.tab === "mon" ? $("m-in-text") : $("t-in-text")).focus(), 250); });
