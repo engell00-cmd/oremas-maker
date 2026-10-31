@@ -1375,7 +1375,7 @@ function mprJudge(m) {
   for (const s of MPR.steps) { if (!s[4]) continue; last = mprCalcAt(m, s[0], pri); over = last.ct > s[1] + 1e-9; if (!over) break; }
   const warn = []; if (MPR_K.some((k) => toInt(m.stats && m.stats[k], 0) < MPR.absMin)) warn.push(`절대 하한 ${MPR.absMin} 미만 칸이 있어요`);
   if (real < MPR.realMin) warn.push(`원래 종족치 합 ${real} · ${MPR.realMin} 이상이 기준이에요`);
-  { const cw = abChange(m).warn; if (cw) warn.push(cw); const ow = sigOwnerWarn(m); if (ow) warn.push(ow); }   // 336 · 337
+  { const cw = abChange(m).warn; if (cw) warn.push(cw); const ow = sigOwnerWarn(m); if (ow) warn.push(ow); const tw = teraWarn(m); if (tw) warn.push(tw); }   // 336 · 337 · 387
   if (over) { const top = mprTop(); return { pride: "", ok: false, old: false, warn, msg: `계산 종족치 ${mprN(last.ct)} 가 오리지널 상한 ${top[0]}(${top[1]})를 ${mprN(last.ct - top[1])} 넘어요 — 능력치를 덜어 주세요 (${mprBreak(last)})` }; }
   return { pride: last.lab, ok: true, old: false, warn, msg: `프라이드 ${last.lab} (통솔점 ${mprN(last.cost)}) · 계산 종족치 ${mprN(last.ct)} / ${last.cap} · 남는 점수 ${mprN(last.cap - last.ct)} (${mprBreak(last)})` };
 }
@@ -1488,6 +1488,12 @@ function abChange(m) {
     if (d > out.d) { out.d = d; out.src = "전용 『" + p.name + "』"; } }
   for (const p of m.pots || []) if (p && abChangeTarget(p.desc) && out.d < 0.5) { out.d = 0.5; out.src = "『" + p.name + "』"; }
   return out;
+}
+// 387 (사용자 10-30 10:27 · 10-31 17:54): 테라스탈 = 전용 포텐셜로만 — 테라스탈 칸에 타입이 있는데 전용 글에 「테라스탈」이 없으면 경고 (배틀은 테라스탈을 안 씀)
+function teraWarn(m) {
+  if (!String(m.tera || "").trim()) return "";
+  if ([m.sig, m.sig2].some((p) => p && (String(p.name || "") + String(p.desc || "")).includes("테라스탈"))) return "";
+  return "테라스탈은 전용 포텐셜로만 열려요 — 전용 글에 「테라스탈」이 없으면 배틀에서 테라스탈을 못 써요 (테라스탈 칸을 비우거나 전용에 적어 주세요)";
 }
 // 337 (사용자 10-29 21:46): 주인 트레이너가 없는 포켓몬은 전용 포텐셜을 못 가짐 — 『베테랑』처럼 「독자적으로 『전용 포텐셜』을 보유한다」 포텐셜이 있으면 됨 (게임 pride_rule.gd sig_owner_warn)
 const OWN_SIG_RE = /독자적으로\s*『?\s*전용(?:\s*포텐셜)?\s*』?\s*(?:을|를)\s*보유/;
