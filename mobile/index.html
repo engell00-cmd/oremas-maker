@@ -518,6 +518,13 @@ button.b.big { font-size: 19px; padding: 16px 14px; border-radius: 12px; width: 
         <div class="share381"><select id="t-share-pick" aria-label="공유할 트레이너"></select><button class="b" id="t-share">공유에 올리기</button></div>
         <div class="msg" id="t-share-msg"></div>
         <div class="note">트레이너를 올리면 그 트레이너의 포켓몬도 전부 같이 올라가요.</div>
+        <div class="share381"><button class="b gold" id="t-natre">『나트레』에 투고</button><span class="note">추천 · 댓글을 받는 투고판 (공유 웹페이지 「나트레」 탭)</span></div>
+        <div id="t-natre-box" hidden style="display:grid;gap:8px;margin-top:8px">
+          <input id="t-natre-title" maxlength="40" placeholder="제목 (40자 · 비우면 트레이너 이름)">
+          <textarea id="t-natre-intro" rows="5" maxlength="3000" placeholder="소개 글 — 컨셉 · 작전 · 설정 등 자유롭게 (3000자)"></textarea>
+          <div class="share381"><button class="b pri" id="t-natre-go">투고</button><button class="b ghost" id="t-natre-x">그만두기</button></div>
+          <div class="msg" id="t-natre-msg"></div>
+        </div>
         <div class="note">게임에서 넣으면: 있는 트레이너는 자질을 바꾸고, 같은 이름의 고유는 새 내용으로 · 새 고유는 덧붙여요. 여기서 지운 고유는 게임에서 안 지워지니 게임에서 지워 주세요. 그림 · SP · 포켓몬 · 소속 · 랭크는 그대로예요.</div>
       </div>
     </details>
@@ -2541,6 +2548,25 @@ $("t-share").addEventListener("click", () => {
   if (!t || !String(t.name).trim()) { toast("올릴 트레이너를 골라 주세요"); return; }
   const mons = trMons(t.name).filter((e) => !isBlankMon(e.mon) && String(e.mon.name).trim()).map((e) => ({ name: String(e.mon.name).trim(), line: buildMon(e.mon) }));
   shareUp381({ kind: "trainer", name: t.name, line: buildTrainer(t), mons }, $("t-share"), $("t-share-msg"));
+});
+// 383 『나트레』 투고 (트레이너 + 그 포켓몬 전부 + 제목 · 소개 글)
+$("t-natre").addEventListener("click", () => {
+  if (!ACC.token) { toast("먼저 로그인해 주세요"); accOpen(); return; }
+  fillTrShare381();
+  const t = S.tr.find((x) => x.name === $("t-share-pick").value);
+  if (!t) { toast("위에서 투고할 트레이너를 골라 주세요"); return; }
+  $("t-natre-box").hidden = false; if (!$("t-natre-title").value) $("t-natre-title").value = t.name; $("t-natre-intro").focus();
+});
+$("t-natre-x").addEventListener("click", () => { $("t-natre-box").hidden = true; });
+$("t-natre-go").addEventListener("click", async () => {
+  const t = S.tr.find((x) => x.name === $("t-share-pick").value);
+  if (!t) { toast("투고할 트레이너를 골라 주세요"); return; }
+  const mons = trMons(t.name).filter((e) => !isBlankMon(e.mon) && String(e.mon.name).trim()).map((e) => ({ name: String(e.mon.name).trim(), line: buildMon(e.mon) }));
+  const btn = $("t-natre-go"), msg = $("t-natre-msg"); btn.disabled = true; msg.textContent = "올리는 중…";
+  const r = await accCall("natre_post", { token: ACC.token, item: { title: $("t-natre-title").value, intro: $("t-natre-intro").value, trainer: { line: buildTrainer(t) }, mons } });
+  btn.disabled = false;
+  if (r.ok) { msg.innerHTML = '<span class="okc">『나트레』에 투고했어요 · <a href="' + SHARE_PAGE + '#natre" target="_blank" rel="noopener" style="color:var(--neon)">나트레 열기 ↗</a></span>' + ((r.warn || []).length ? '<ul class="warn">' + r.warn.map((x) => "<li>" + esc(x) + "</li>").join("") + "</ul>" : ""); toast("『나트레』에 투고했어요"); $("t-natre-intro").value = ""; }
+  else { if (r.auth === false) { ACC.token = ""; ACC.err = r.err; accSave(); accShow(); } msg.innerHTML = '<span class="err">' + esc(r.err || "올리지 못했어요") + "</span>"; }
 });
 fillTrShare381(); accShow();
 try { const n = sessionStorage.getItem("acc381-note"); if (n) { sessionStorage.removeItem("acc381-note"); setTimeout(() => toast(n), 600); } } catch (e) {}
