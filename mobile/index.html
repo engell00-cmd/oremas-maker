@@ -1492,7 +1492,8 @@ function abChange(m) {
 // 387 (사용자 10-30 10:27 · 10-31 17:54): 테라스탈 = 전용 포텐셜로만 — 테라스탈 칸에 타입이 있는데 전용 글에 「테라스탈」이 없으면 경고 (배틀은 테라스탈을 안 씀)
 function teraWarn(m) {
   if (!String(m.tera || "").trim()) return "";
-  if ([m.sig, m.sig2].some((p) => p && (String(p.name || "") + String(p.desc || "")).includes("테라스탈"))) return "";
+  if ([m.sig, m.sig2].some((p) => p && (String(p.name || "") + String(p.desc || "")).includes("테라스탈")))
+    return (m.pots || []).some((p) => p && (String(p.name || "").trim().replace(/^『|』$/g, "") === "올드 타입" || String(p.name || "").includes("리전 폼"))) ? "" : "테라스탈은 『올드 타입』 · 『리전 폼』만 쓸 수 있어요 (사용자 10-31 18:11) — 분류 칸을 확인해 주세요";
   return "테라스탈은 전용 포텐셜로만 열려요 — 전용 글에 「테라스탈」이 없으면 배틀에서 테라스탈을 못 써요 (테라스탈 칸을 비우거나 전용에 적어 주세요)";
 }
 // 337 (사용자 10-29 21:46): 주인 트레이너가 없는 포켓몬은 전용 포텐셜을 못 가짐 — 『베테랑』처럼 「독자적으로 『전용 포텐셜』을 보유한다」 포텐셜이 있으면 됨 (게임 pride_rule.gd sig_owner_warn)
